@@ -35,6 +35,11 @@ const router = createRouter({
       component: () => import('../views/ForumManagementView.vue'),
     },
     {
+      path: '/hospital/case-privacy',
+      name: 'case-privacy',
+      component: () => import('../views/CasePrivacyView.vue'),
+    },
+    {
       path: '/parent',
       name: 'parent',
       component: () => import('../views/ParentView.vue'),

@@ -17,7 +17,7 @@
       <div class="category-card">
         <h3>分类2 - 病例隐私保护</h3>
         <p>保密病人隐私，可以上传仅上传局部和分部位的敏感的模块（线上线下都可以）</p>
-        <button class="btn">上传病例</button>
+        <button class="btn" @click="$router.push('/hospital/case-privacy')">上传病例</button>
       </div>
       
       <div class="category-card">
