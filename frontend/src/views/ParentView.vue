@@ -24,7 +24,7 @@
         <h3>分类3 - 训练基地</h3>
         <p>我们自己开发及集成的一套家庭版感统小游戏，有很多小模块，每个小模块可以进行感统测评</p>
         <p>根据测试结果做个性化定制训练。每个小模块的游戏时间控制在三到四分钟</p>
-        <button class="btn">开始训练</button>
+        <button class="btn" @click="$router.push('/parent/training-base')">开始训练</button>
       </div>
       
       <div class="category-card">

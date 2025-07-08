@@ -65,6 +65,11 @@ const router = createRouter({
       component: () => import('../views/ParentForumView.vue'),
     },
     {
+      path: '/parent/training-base',
+      name: 'training-base',
+      component: () => import('../views/TrainingBaseView.vue'),
+    },
+    {
       path: '/school',
       name: 'school',
       component: () => import('../views/SchoolView.vue'),
