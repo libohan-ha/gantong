@@ -170,7 +170,7 @@ const cities = computed(() => {
 
 // 专业领域列表
 const specialties = computed(() => {
-  const specialtySet = new Set()
+  const specialtySet = new Set<string>()
   experts.forEach(expert => {
     expert.specialty.forEach(s => specialtySet.add(s))
   })

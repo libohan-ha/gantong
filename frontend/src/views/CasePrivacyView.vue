@@ -258,7 +258,7 @@ const filterType = ref<CaseType | 'all'>('all')
 const searchKeyword = ref('')
 
 // 身体部位选项
-const bodyPartOptions = [
+const bodyPartOptions: Array<{ value: BodyPartType; label: string; icon: string; description: string }> = [
   { value: 'head', label: '头部相关', icon: '🧠', description: '认知、注意力相关评估' },
   { value: 'limbs', label: '四肢局部', icon: '🦵', description: '手足部分功能展示' },
   { value: 'torso', label: '躯干部分', icon: '🫁', description: '核心稳定性相关' },
