@@ -1,848 +1,376 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 
-// 感统训练模块接口
-interface TrainingModule {
+// 简化的训练项目接口
+interface TrainingItem {
   id: number
-  name: string
-  type: 'vestibular' | 'proprioceptive' | 'tactile' | 'visual' | 'auditory' | 'coordination'
-  description: string
-  icon: string
-  color: string
-  bgColor: string
-  duration: number // 游戏时长（分钟）
-  difficulty: 'easy' | 'medium' | 'hard'
-  ageRange: {
-    min: number
-    max: number
-  }
-  skills: string[]
-  assessmentCriteria: string[]
-  gameInstructions: string[]
-  equipment: string[]
-  isCompleted: boolean
-  lastScore?: number
-  personalizedTraining?: PersonalizedTraining
+  title: string           // 训练标题
+  target: string          // 训练目标
+  equipment: string       // 训练道具
+  content: string         // 训练内容
+  category: string        // 训练类别（触觉、前庭觉、本体觉等）
 }
 
-// 个性化训练接口
-interface PersonalizedTraining {
-  id: number
-  moduleId: number
-  childProfile: ChildProfile
-  assessmentResult: AssessmentResult
-  trainingPlan: TrainingPlan
-  progress: TrainingProgress[]
-  recommendations: string[]
-  nextSession?: Date
-}
-
-// 儿童档案接口
-interface ChildProfile {
-  id: number
-  name: string
-  age: number
-  gender: 'male' | 'female'
-  avatar: string
-  strengths: string[]
-  challenges: string[]
-  preferences: string[]
-}
-
-// 评估结果接口
-interface AssessmentResult {
-  moduleId: number
-  score: number
-  weakAreas: string[]
-  strongAreas: string[]
-  recommendations: string[]
-  difficulty: 'easy' | 'medium' | 'hard'
-  timestamp: string
-}
-
-// 训练计划接口
-interface TrainingPlan {
-  id: number
-  name: string
-  exercises: Exercise[]
-  frequency: string
-  duration: number
-  goals: string[]
-}
-
-// 训练练习接口
-interface Exercise {
-  id: number
-  name: string
-  description: string
-  duration: number
-  instructions: string[]
-  visualAids: string[]
-  adaptations: string[]
-}
-
-// 训练进度接口
-interface TrainingProgress {
-  date: string
-  score: number
-  timeSpent: number
-  completed: boolean
-  notes: string
-  improvements: string[]
-}
-
-// 游戏状态接口
-interface GameState {
-  isPlaying: boolean
-  currentModule: TrainingModule | null
-  timeRemaining: number
-  score: number
-  level: number
-  isAssessment: boolean
-}
-
-// 当前儿童档案
-const currentChild = ref<ChildProfile>({
-  id: 1,
-  name: '小明',
-  age: 6,
-  gender: 'male',
-  avatar: '/api/placeholder/80/80',
-  strengths: ['视觉注意力', '大动作协调'],
-  challenges: ['平衡感', '精细动作'],
-  preferences: ['音乐游戏', '颜色识别']
-})
-
-// 感统训练模块数据
-const trainingModules = ref<TrainingModule[]>([
-  {
-    id: 1,
-    name: '前庭觉平衡训练',
-    type: 'vestibular',
-    description: '通过平衡、旋转和摇摆动作训练前庭觉，提升身体平衡和空间感知能力。',
-    icon: '⚖️',
-    color: '#2196f3',
-    bgColor: '#e3f2fd',
-    duration: 4,
-    difficulty: 'medium',
-    ageRange: { min: 4, max: 12 },
-    skills: ['平衡感', '空间感知', '身体协调', '姿势控制'],
-    assessmentCriteria: ['单脚站立时间', '平衡木行走', '旋转后平衡恢复', '眼球追踪稳定性'],
-    gameInstructions: [
-      '游戏开始前先进行简单的平衡测试',
-      '根据屏幕提示做相应的平衡动作',
-      '保持动作稳定，避免晃动',
-      '完成指定时间后进入下一关'
-    ],
-    equipment: ['平衡垫', '手机或平板'],
-    isCompleted: false
-  },
-  {
-    id: 2,
-    name: '本体觉身体意识',
-    type: 'proprioceptive',
-    description: '增强对身体位置和肌肉张力的感知，提升精细动作和大动作技能。',
-    icon: '🤸',
-    color: '#4caf50',
-    bgColor: '#e8f5e8',
-    duration: 3,
-    difficulty: 'easy',
-    ageRange: { min: 3, max: 10 },
-    skills: ['身体意识', '肌肉控制', '动作计划', '空间定位'],
-    assessmentCriteria: ['动作模仿准确性', '肌肉张力控制', '身体部位识别', '动作协调性'],
-    gameInstructions: [
-      '观察屏幕上的动作示范',
-      '模仿做出相同的身体动作',
-      '注意动作的准确性和流畅性',
-      '根据提示调整动作幅度'
-    ],
-    equipment: ['舒适的活动空间'],
-    isCompleted: true,
-    lastScore: 85
-  },
-  {
-    id: 3,
-    name: '触觉敏感度训练',
-    type: 'tactile',
-    description: '通过不同材质和温度的触觉刺激，改善触觉敏感或触觉迟钝问题。',
-    icon: '✋',
-    color: '#ff9800',
-    bgColor: '#fff3e0',
-    duration: 3,
-    difficulty: 'easy',
-    ageRange: { min: 2, max: 8 },
-    skills: ['触觉辨别', '材质识别', '压力感知', '温度感知'],
-    assessmentCriteria: ['材质辨别准确性', '触觉反应适当性', '触觉探索主动性', '触觉防御反应'],
-    gameInstructions: [
-      '准备不同材质的小物品',
-      '根据游戏提示触摸相应物品',
-      '描述触摸的感受',
-      '完成触觉探索任务'
-    ],
-    equipment: ['触觉材料包', '不同材质物品'],
-    isCompleted: false
-  },
-  {
-    id: 4,
-    name: '视觉追踪与专注',
-    type: 'visual',
-    description: '训练视觉注意力、眼球追踪和视觉-动作协调能力。',
-    icon: '👁️',
-    color: '#9c27b0',
-    bgColor: '#f3e5f5',
-    duration: 4,
-    difficulty: 'medium',
-    ageRange: { min: 4, max: 12 },
-    skills: ['视觉注意力', '眼球追踪', '视觉记忆', '视觉辨别'],
-    assessmentCriteria: ['视觉追踪流畅性', '注意力持续时间', '视觉记忆准确性', '视觉-动作协调'],
-    gameInstructions: [
-      '眼睛跟随屏幕上移动的目标',
-      '点击指定的视觉目标',
-      '记住并重复视觉序列',
-      '在规定时间内完成视觉任务'
-    ],
-    equipment: ['平板或手机', '良好光线环境'],
-    isCompleted: true,
-    lastScore: 92
-  },
-  {
-    id: 5,
-    name: '听觉处理与记忆',
-    type: 'auditory',
-    description: '提升听觉注意力、听觉记忆和听觉辨别能力。',
-    icon: '👂',
-    color: '#f44336',
-    bgColor: '#ffebee',
-    duration: 3,
-    difficulty: 'easy',
-    ageRange: { min: 3, max: 10 },
-    skills: ['听觉注意力', '听觉记忆', '声音辨别', '听觉-动作协调'],
-    assessmentCriteria: ['声音辨别准确性', '听觉记忆长度', '听觉注意力', '听觉-动作反应'],
-    gameInstructions: [
-      '仔细听游戏中的声音指令',
-      '按照听到的顺序重复动作',
-      '识别并分类不同的声音',
-      '根据音乐节拍做动作'
-    ],
-    equipment: ['耳机或音响', '安静环境'],
-    isCompleted: false
-  },
-  {
-    id: 6,
-    name: '双侧协调与手眼配合',
-    type: 'coordination',
-    description: '训练双手协调、手眼配合和精细动作技能。',
-    icon: '🙌',
-    color: '#607d8b',
-    bgColor: '#eceff1',
-    duration: 4,
-    difficulty: 'hard',
-    ageRange: { min: 5, max: 12 },
-    skills: ['双手协调', '手眼配合', '精细动作', '节奏感'],
-    assessmentCriteria: ['双手协调性', '手眼配合准确性', '精细动作控制', '动作节奏感'],
-    gameInstructions: [
-      '同时使用双手完成指定动作',
-      '根据屏幕提示做手眼配合练习',
-      '保持动作的节奏和准确性',
-      '逐步提高动作的复杂度'
-    ],
-    equipment: ['平板触屏', '小物品操作'],
-    isCompleted: false
-  }
+// 训练数据
+const trainingData = ref<TrainingItem[]>([
+  // 触觉训练
+  { id: 1, title: '抓豆子', target: '触觉', equipment: '豆子、冷热水、两个盒', content: '豆子放在其中一个盒里，让孩子把豆子从热水盒抓到冷水盒，这样交替进行。', category: '触觉' },
+  { id: 2, title: '风力转转', target: '触觉', equipment: '吹风、固体胶、白纸', content: '白纸撕成小纸条贴在手臂上，用吹风吹，让孩子保护纸条不能掉。感知风力大小、冷暖等', category: '触觉' },
+  { id: 3, title: '指压板', target: '触觉', equipment: '指压板、跳绳、书', content: '指压板上走动、跳跃（单脚跳、双脚跳）、跳绳、手托物品平衡练习', category: '触觉' },
+  { id: 4, title: '触摸绘本', target: '触觉', equipment: '触摸类绘本', content: '对绘本进行触摸，感知粗糙、光滑、柔软、扎手等', category: '触觉' },
+  { id: 5, title: '触摸球', target: '触觉', equipment: '触摸球', content: '触摸球进行全身按摩，触摸敏感度', category: '触觉' },
+  { id: 6, title: '水中探宝', target: '触觉', equipment: '水、各种小玩具、眼罩', content: '把小玩具藏进水里，让孩子戴上眼罩摸出并说出是什么', category: '触觉' },
+  { id: 7, title: '松紧带', target: '触觉', equipment: '松紧带或浴巾、瑜伽带', content: '把松紧带按住下层，孩子摔倒。浴巾、孩子躺浴巾上滚动，家长将孩子裹起来', category: '触觉' },
+  { id: 8, title: '触碰游戏', target: '触觉', equipment: '眼罩', content: '两个孩子或者家长和孩子轮流戴上眼罩，口令：请您（戴眼罩的人）拍打对方手臂也可以是（大腿、背部等等身体各个部位）三下（五下，数量自己定）', category: '触觉' },
+  { id: 9, title: '情商类绘本', target: '触觉', equipment: '情商类绘本', content: '推荐《生气汤》《太急的担心》《我的情绪小怪兽》《我生气了》《小鸟爸爸生龙林》《跟坏情绪说再见》等等。阅读情商绘本，学会情绪管理', category: '触觉' },
+  
+  // 前庭觉训练
+  { id: 10, title: '荡秋千', target: '前庭觉', equipment: '浴巾或者小被单，玩偶娃娃若干，篮子', content: '两个家长将孩子放在被单里，然后荡秋千，孩子则去抓娃娃。延伸训练：抓娃娃投掷到篮子', category: '前庭觉' },
+  { id: 11, title: '趴地推球', target: '前庭觉', equipment: '软垫、B寸皮球一个', content: '孩子趴在软垫上，垫子离墙30-50公分只有肚子着地，头上肢小腿及脚都抬起来，手心往外，两手互相相对，然后把拇指指向墙壁，待弹回后，再连续推50到100次，每天练习10分钟左右。', category: '前庭觉' },
+  { id: 12, title: '手推车走路', target: '前庭觉', equipment: '无', content: '家长抓住孩子的腿，让孩子用手走路', category: '前庭觉' },
+  { id: 13, title: '直线行走', target: '前庭觉平衡', equipment: '勺子、乒乓球', content: '双手用力于托球，抬高放胸前进行直线行走', category: '前庭觉' },
+  { id: 14, title: '头顶杂耍', target: '前庭觉', equipment: '叠叠杯或其它不易碎物品', content: '头顶物品进行行走，可以脚下加指压板。', category: '前庭觉' },
+  { id: 15, title: '大铁锤', target: '前庭觉', equipment: '大篮子', content: '将孩子装进大篮子里左右甩动，也可以架住孩子的腰腹窝进行甩动', category: '前庭觉' },
+  { id: 16, title: '飞机飞', target: '前庭觉', equipment: '无', content: '家长平静沙发或床上，小腿弯曲，将孩子手放在小腿上，前后晃动，像飞机一样', category: '前庭觉' },
+  { id: 17, title: '摇摇船', target: '前庭觉', equipment: '无', content: '家长和孩子相对，脚靠脚，然后轮流往后倒，像划船一样', category: '前庭觉' },
+  
+  // 本体觉训练
+  { id: 45, title: '跨栏', target: '本体觉', equipment: '跨栏', content: '孩子跳过跨栏，可以进行搬运物品，做线段孩子可以跨越。', category: '本体觉' },
+  { id: 46, title: '花式跳绳', target: '本体觉', equipment: '跳绳', content: '家长和孩子一起跳绳。也可以两个人舞动绳子，孩子跳', category: '本体觉' },
+  { id: 47, title: '不倒森林', target: '本体觉、团队合作', equipment: '棍子', content: '三个或以上孩子围成圈圈，喊口令一二三，抓，然后同时每个人去抓自己右边的人的棍子', category: '本体觉' },
+  { id: 49, title: '青蛙跳', target: '本体觉', equipment: '无', content: '双手背在身后，蹲下，跳起。要求孩子不能站起来，必须跳起来。', category: '本体觉' },
+  { id: 51, title: '前后左右跳', target: '本体觉', equipment: '四根长棍子', content: '将棍子摆成方形，然后孩子站中间，从四个方向跳跃，每次都要跳回中点再跳跃', category: '本体觉' },
+  { id: 52, title: '拍球', target: '本体觉', equipment: '球、若干障碍物', content: '拍球过障碍物。3岁学习去接球，4-5岁学习拍球，5-6岁学习拍球过障碍。', category: '本体觉' },
+  
+  // 听觉训练
+  { id: 48, title: '点点点', target: '听觉', equipment: '各种颜色小圆片若干', content: '家长说出几个圆片颜色，比如，一个红色，两个黄色，三个蓝色等让孩子根据顺序排列出来', category: '听觉' },
+  { id: 96, title: '萝卜蹲', target: '听觉注意力', equipment: '无', content: '游戏需要三人以上完成，每个人分别取名一种彩色萝卜，然后开始萝卜蹲的游戏。几段：红萝卜蹲，红萝卜蹲，红萝卜蹲完黄萝卜蹲。黄萝卜继续，以此类推', category: '听觉' },
+  { id: 102, title: '数字拍拍拍', target: '反应力', equipment: '无', content: '家长规定一个数字，当你拿到这个数字的时候，孩子就拍手。也可以是其他动作，自己定。', category: '听觉' },
+  
+  // 协调性训练
+  { id: 53, title: '跳圈', target: '本体觉', equipment: '大圆、沙包', content: '大圆双脚跳，小圆单脚跳，沙包按顺序放圈里，遇到有沙包的圈就要跳过', category: '协调性' },
+  { id: 54, title: '交换抛接球', target: '本体觉', equipment: '球', content: '两人一组，互相抛接球', category: '协调性' },
+  { id: 65, title: '跳绳', target: '本体觉、协调能力', equipment: '跳绳', content: '低龄段学习跳绳的分解步骤，6岁以上完成连续跳绳', category: '协调性' },
+  { id: 66, title: '袋鼠跳', target: '本体觉，跳跃能力', equipment: '跳袋', content: '孩子下半身装进跳袋里学袋鼠跳。', category: '协调性' },
+  
+  // 精细动作训练
+  { id: 55, title: '粘贴画', target: '手指精细能力', equipment: '剪刀、胶棒', content: '剪出形状，然后跳到另外一张纸上，贴出主题。', category: '精细动作' },
+  { id: 75, title: '夹豆子', target: '精细能力，手眼协调', equipment: '两种颜色球子或者豆子', content: '将两种颜色球子或豆子分别夹出来', category: '精细动作' },
+  { id: 83, title: '翻书页', target: '手指精细能力', equipment: '比较厚的书', content: '孩子快速翻书。升级版，边翻书家长边问问题，比如：3+2等于几，回答正确继续翻书。', category: '精细动作' },
+  
+  // 注意力训练
+  { id: 73, title: '找宝藏', target: '注意力训练', equipment: '玩具若干或者其他物品', content: '将玩具放进袋子里，让孩子根据家长提示找出相应的物品。先说摸的什么才能拿出来看', category: '注意力' },
+  { id: 74, title: '踩踩踩', target: '注意力，反应力训练', equipment: '无', content: '孩子用脚来踩家长的手，家长也可以用手去轻轻拍打孩子的脚，让孩子躲闪', category: '注意力' },
+  { id: 80, title: '看动作做动作', target: '注意力，反应力', equipment: '卡片若干张，什么都可以', content: '看到动物的卡片就拍手，看到植物的卡片就拍照（动作可以自己定）速度由慢到快', category: '注意力' },
+  
+  // 思维训练
+  { id: 34, title: '对对碰', target: '思维训练', equipment: '扑克牌或者其他卡牌', content: '准备3组共计6张扑克牌，然后把扑克牌扣下，让孩子找出相同的两张，一次只能翻两张牌。如果是不问的两张牌，那么要放回原位并扣下。根据年龄增加的细数。初玩不用扣牌。', category: '思维训练' },
+  { id: 79, title: '扑克牌加减法', target: '思维能力，识数能力', equipment: '扑克牌', content: '两张扑克牌，让孩子数数合起来是几，4岁以下5以内，4-5岁10以内，6岁可以20以内。', category: '思维训练' },
+  { id: 139, title: '棋类游戏', target: '空间感、思维力', equipment: '棋类', content: '根据规则玩各种棋类', category: '思维训练' },
+  { id: 154, title: '有趣的五子棋', target: '思维训练', equipment: '国棋', content: '把五颗棋子横竖地连成线的为赢', category: '思维训练' },
+  
+  // 记忆力训练
+  { id: 91, title: '火车就要开', target: '反应力，记忆力', equipment: '无', content: '需要3个人以上，每个人设置一个地点，第一个人说：我们的火车就要开。其他人问：往哪开。第一个人说：北京开。然后代表北京的孩子继续说，以此类推。', category: '记忆力' },
+  { id: 99, title: '扑克数字记忆', target: '记忆力', equipment: '扑克牌', content: '五张牌摆一排记忆20秒，然后扣下，让孩子按顺序说出表。低龄宝宝刚开始玩2、3张牌', category: '记忆力' },
+  { id: 101, title: '语言技能', target: '记忆力', equipment: '无', content: '家长说：今天我到超市买了一个苹果。孩子：今天我到超市买了一个苹果，一个梨子。后面接：今天我到超市买了一个苹果，一个梨子，一个香蕉。以此类推。后面重复前面全部的话', category: '记忆力' },
+  { id: 105, title: '颜色记忆', target: '记忆力', equipment: '五颜六色的玩具', content: '给孩子一个玩具，记忆20秒，然后跳起来让孩子把这个玩具有什么颜色背出来。', category: '记忆力' },
+  
+  // 平衡感训练
+  { id: 118, title: '平衡台跳跃', target: '平衡力、下肢发展', equipment: '平衡台一个或者十个', content: '从平衡台上跳上跳下，保持平衡。也可以将5个平衡台摆成一排，孩子依次跳过', category: '平衡感' },
+  { id: 124, title: '杂技表演', target: '平衡力、自控力', equipment: '书或者玩具', content: '用头、胳膊肘同时顶书，进行直线行走', category: '平衡感' },
+  { id: 177, title: '平衡车', target: '平衡力、本体觉', equipment: '平衡车', content: '平衡车后退行进，保持身体平衡。', category: '平衡感' },
+  
+  // 视觉训练
+  { id: 192, title: '舒尔特表', target: '视觉广度，专注力', equipment: '舒尔特表', content: '根据年龄完成舒尔特表（3*3、4*4、5*5、6*6。。。）快速完成，时间越短越好。', category: '视觉训练' },
+  { id: 193, title: '颜色配对', target: '观察力，专注力', equipment: '四色板', content: '根据题单找出正确的颜色', category: '视觉训练' },
+  { id: 260, title: '图形划消', target: '观察力，视觉分辨力', equipment: '自制图形划消题单', content: '根据提示用"\"划掉三角形。用时越短越好', category: '视觉训练' }
 ])
 
-// 游戏状态
-const gameState = ref<GameState>({
-  isPlaying: false,
-  currentModule: null,
-  timeRemaining: 0,
-  score: 0,
-  level: 1,
-  isAssessment: false
+// 当前选中的类别
+const selectedCategory = ref<string>('全部')
+// 搜索关键词
+const searchKeyword = ref<string>('')
+// 当前页码
+const currentPage = ref<number>(1)
+// 每页显示数量
+const pageSize = ref<number>(12)
+// 详情弹窗显示状态
+const showDetailModal = ref<boolean>(false)
+// 当前查看的训练项目
+const currentTrainingItem = ref<TrainingItem | null>(null)
+
+// 训练类别列表
+const categories = computed(() => {
+  const uniqueCategories = [...new Set(trainingData.value.map(item => item.category))]
+  return ['全部', ...uniqueCategories]
 })
 
-// 选中的模块
-const selectedModule = ref<TrainingModule | null>(null)
-const showModuleDetail = ref(false)
-const showGameInterface = ref(false)
-const gameTimer = ref<NodeJS.Timeout | null>(null)
-
-// 筛选状态
-const filterType = ref('all')
-const filterDifficulty = ref('all')
-const filterCompleted = ref('all')
-
-// 筛选选项
-const typeOptions = [
-  { value: 'all', label: '全部类型', icon: '🎯' },
-  { value: 'vestibular', label: '前庭觉', icon: '⚖️' },
-  { value: 'proprioceptive', label: '本体觉', icon: '🤸' },
-  { value: 'tactile', label: '触觉', icon: '✋' },
-  { value: 'visual', label: '视觉', icon: '👁️' },
-  { value: 'auditory', label: '听觉', icon: '👂' },
-  { value: 'coordination', label: '协调', icon: '🙌' }
-]
-
-const difficultyOptions = [
-  { value: 'all', label: '全部难度' },
-  { value: 'easy', label: '简单' },
-  { value: 'medium', label: '中等' },
-  { value: 'hard', label: '困难' }
-]
-
-const completedOptions = [
-  { value: 'all', label: '全部状态' },
-  { value: 'completed', label: '已完成' },
-  { value: 'uncompleted', label: '未完成' }
-]
-
-// 过滤后的模块列表
-const filteredModules = computed(() => {
-  return trainingModules.value.filter(module => {
-    const typeMatch = filterType.value === 'all' || module.type === filterType.value
-    const difficultyMatch = filterDifficulty.value === 'all' || module.difficulty === filterDifficulty.value
-    const completedMatch = filterCompleted.value === 'all' || 
-      (filterCompleted.value === 'completed' && module.isCompleted) ||
-      (filterCompleted.value === 'uncompleted' && !module.isCompleted)
+// 过滤后的训练数据
+const filteredTrainingData = computed(() => {
+  return trainingData.value.filter(item => {
+    const categoryMatch = selectedCategory.value === '全部' || item.category === selectedCategory.value
+    const keywordMatch = searchKeyword.value === '' || 
+      item.title.includes(searchKeyword.value) ||
+      item.target.includes(searchKeyword.value) ||
+      item.equipment.includes(searchKeyword.value) ||
+      item.content.includes(searchKeyword.value)
     
-    return typeMatch && difficultyMatch && completedMatch
+    return categoryMatch && keywordMatch
   })
 })
 
-// 统计数据
-const statistics = computed(() => {
-  const total = trainingModules.value.length
-  const completed = trainingModules.value.filter(m => m.isCompleted).length
-  const averageScore = trainingModules.value
-    .filter(m => m.lastScore)
-    .reduce((sum, m) => sum + (m.lastScore || 0), 0) / 
-    trainingModules.value.filter(m => m.lastScore).length || 0
+// 分页后的训练数据
+const paginatedTrainingData = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredTrainingData.value.slice(start, end)
+})
+
+// 总页数
+const totalPages = computed(() => {
+  return Math.ceil(filteredTrainingData.value.length / pageSize.value)
+})
+
+// 类别颜色映射
+const categoryColors: { [key: string]: string } = {
+  '触觉': '#ff9800',
+  '前庭觉': '#2196f3',
+  '本体觉': '#4caf50',
+  '听觉': '#9c27b0',
+  '协调性': '#ff5722',
+  '精细动作': '#795548',
+  '注意力': '#f44336',
+  '思维训练': '#607d8b',
+  '记忆力': '#e91e63',
+  '平衡感': '#00bcd4',
+  '视觉训练': '#ffeb3b'
+}
+
+// 获取类别颜色
+const getCategoryColor = (category: string): string => {
+  return categoryColors[category] || '#9e9e9e'
+}
+
+// 查看详情
+const viewDetail = (item: TrainingItem) => {
+  currentTrainingItem.value = item
+  showDetailModal.value = true
+}
+
+// 关闭详情弹窗
+const closeDetailModal = () => {
+  showDetailModal.value = false
+  currentTrainingItem.value = null
+}
+
+// 切换页码
+const changePage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
+
+// 重置搜索
+const resetSearch = () => {
+  searchKeyword.value = ''
+  selectedCategory.value = '全部'
+  currentPage.value = 1
+}
+
+// 获取训练统计信息
+const trainingStats = computed(() => {
+  const total = trainingData.value.length
+  const categoryStats = categories.value.slice(1).map(category => ({
+    name: category,
+    count: trainingData.value.filter(item => item.category === category).length,
+    color: getCategoryColor(category)
+  }))
   
   return {
     total,
-    completed,
-    uncompleted: total - completed,
-    averageScore: Math.round(averageScore)
+    categories: categoryStats
   }
-})
-
-// 获取难度信息
-const getDifficultyInfo = (difficulty: string) => {
-  const difficultyMap = {
-    easy: { text: '简单', color: '#4caf50', bgColor: '#e8f5e8' },
-    medium: { text: '中等', color: '#ff9800', bgColor: '#fff3e0' },
-    hard: { text: '困难', color: '#f44336', bgColor: '#ffebee' }
-  }
-  return difficultyMap[difficulty as keyof typeof difficultyMap] || { text: difficulty, color: '#666', bgColor: '#f0f0f0' }
-}
-
-// 查看模块详情
-const viewModuleDetail = (module: TrainingModule) => {
-  selectedModule.value = module
-  showModuleDetail.value = true
-}
-
-// 关闭弹窗
-const closeModal = () => {
-  showModuleDetail.value = false
-  showGameInterface.value = false
-  selectedModule.value = null
-  stopGame()
-}
-
-// 开始训练
-const startTraining = (module: TrainingModule, isAssessment = false) => {
-  selectedModule.value = module
-  gameState.value = {
-    isPlaying: true,
-    currentModule: module,
-    timeRemaining: module.duration * 60, // 转换为秒
-    score: 0,
-    level: 1,
-    isAssessment
-  }
-  showGameInterface.value = true
-  startGameTimer()
-}
-
-// 开始游戏计时器
-const startGameTimer = () => {
-  gameTimer.value = setInterval(() => {
-    if (gameState.value.timeRemaining > 0) {
-      gameState.value.timeRemaining--
-    } else {
-      endGame()
-    }
-  }, 1000)
-}
-
-// 停止游戏
-const stopGame = () => {
-  if (gameTimer.value) {
-    clearInterval(gameTimer.value)
-    gameTimer.value = null
-  }
-  gameState.value.isPlaying = false
-}
-
-// 结束游戏
-const endGame = () => {
-  stopGame()
-  
-  if (selectedModule.value) {
-    // 更新模块完成状态和分数
-    selectedModule.value.isCompleted = true
-    selectedModule.value.lastScore = gameState.value.score
-    
-    // 模拟生成个性化训练计划
-    generatePersonalizedTraining(selectedModule.value, gameState.value.score)
-  }
-  
-  alert(`训练完成！\n得分：${gameState.value.score}\n根据您的表现，我们已为您生成个性化训练计划。`)
-  closeModal()
-}
-
-// 生成个性化训练计划
-const generatePersonalizedTraining = (module: TrainingModule, score: number) => {
-  const weakAreas: string[] = []
-  const strongAreas: string[] = []
-  const recommendations: string[] = []
-  
-  // 基于分数分析强弱项
-  if (score < 60) {
-    weakAreas.push(...module.skills.slice(0, 2))
-    recommendations.push('建议增加基础训练频次', '可以降低训练难度', '需要更多的辅助和鼓励')
-  } else if (score < 80) {
-    weakAreas.push(module.skills[0])
-    strongAreas.push(module.skills[1])
-    recommendations.push('保持当前训练强度', '可以适当增加挑战性', '重点关注薄弱环节')
-  } else {
-    strongAreas.push(...module.skills)
-    recommendations.push('可以提高训练难度', '尝试更复杂的变化', '考虑挑战更高级别')
-  }
-  
-  // 模拟个性化训练计划
-  module.personalizedTraining = {
-    id: Date.now(),
-    moduleId: module.id,
-    childProfile: currentChild.value,
-    assessmentResult: {
-      moduleId: module.id,
-      score,
-      weakAreas,
-      strongAreas,
-      recommendations,
-      difficulty: score > 80 ? 'hard' : score > 60 ? 'medium' : 'easy',
-      timestamp: new Date().toISOString()
-    },
-    trainingPlan: {
-      id: Date.now(),
-      name: `${module.name} - 个性化计划`,
-      exercises: generateExercises(module, score),
-      frequency: score > 80 ? '每日1次' : '每日2次',
-      duration: module.duration,
-      goals: [`提升${module.skills[0]}`, `改善${module.skills[1]}`]
-    },
-    progress: [],
-    recommendations,
-    nextSession: new Date(Date.now() + 24 * 60 * 60 * 1000) // 明天
-  }
-}
-
-// 生成训练练习
-const generateExercises = (module: TrainingModule, score: number): Exercise[] => {
-  const baseExercises: Exercise[] = [
-    {
-      id: 1,
-      name: `基础${module.name}练习`,
-      description: `针对${module.skills[0]}的基础训练`,
-      duration: 60,
-      instructions: module.gameInstructions,
-      visualAids: ['示范视频', '图片指导'],
-      adaptations: score < 60 ? ['降低难度', '增加提示', '延长时间'] : []
-    },
-    {
-      id: 2,
-      name: `进阶${module.name}练习`,
-      description: `针对${module.skills[1]}的进阶训练`,
-      duration: 90,
-      instructions: ['在基础练习基础上增加复杂度', '提高动作精确度'],
-      visualAids: ['进阶示范', '对比图例'],
-      adaptations: score > 80 ? ['增加难度', '减少提示', '缩短时间'] : []
-    }
-  ]
-  
-  return baseExercises
-}
-
-// 格式化时间
-const formatTime = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60)
-  const remainingSeconds = seconds % 60
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
-}
-
-// 模拟游戏操作
-const simulateGameAction = () => {
-  if (gameState.value.isPlaying) {
-    gameState.value.score += Math.floor(Math.random() * 10) + 5
-  }
-}
-
-// 清理定时器
-onUnmounted(() => {
-  stopGame()
 })
 </script>
 
 <template>
-  <div class="training-base-container">
-    <!-- 页面头部 -->
+  <div class="training-base">
+    <!-- 页面标题 -->
     <div class="page-header">
-      <h1>感统训练基地</h1>
-      <p class="header-desc">家庭版感统小游戏，个性化定制训练方案</p>
-    </div>
-
-    <!-- 儿童档案卡片 -->
-    <div class="child-profile-card">
-      <div class="child-info">
-        <div class="child-avatar">{{ currentChild.name.charAt(0) }}</div>
-        <div class="child-details">
-          <h3>{{ currentChild.name }}</h3>
-          <p>年龄：{{ currentChild.age }}岁 | 性别：{{ currentChild.gender === 'male' ? '男' : '女' }}</p>
-          <div class="child-tags">
-            <span class="strength-tag" v-for="strength in currentChild.strengths" :key="strength">
-              💪 {{ strength }}
-            </span>
-            <span class="challenge-tag" v-for="challenge in currentChild.challenges" :key="challenge">
-              🎯 {{ challenge }}
-            </span>
+      <div class="header-content">
+        <div class="title-section">
+          <h1>🎯 感统训练基地</h1>
+          <p>专业的感觉统合训练项目，帮助孩子全面发展</p>
+        </div>
+        <div class="stats-section">
+          <div class="stat-item">
+            <div class="stat-number">{{ trainingStats.total }}</div>
+            <div class="stat-label">训练项目</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">{{ categories.length - 1 }}</div>
+            <div class="stat-label">训练类别</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 训练统计 -->
-    <div class="statistics-grid">
-      <div class="stat-card">
-        <div class="stat-icon">🎮</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.total }}</div>
-          <div class="stat-label">训练模块</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">✅</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.completed }}</div>
-          <div class="stat-label">已完成</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">⏳</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.uncompleted }}</div>
-          <div class="stat-label">待完成</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.averageScore || 0 }}</div>
-          <div class="stat-label">平均得分</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 筛选区域 -->
-    <div class="filters-section">
-      <div class="filters-row">
-        <div class="filter-group">
-          <label>训练类型：</label>
-          <div class="type-filters">
-            <button 
-              v-for="type in typeOptions" 
-              :key="type.value"
-              class="type-btn"
-              :class="{ active: filterType === type.value }"
-              @click="filterType = type.value"
-            >
-              <span class="type-icon">{{ type.icon }}</span>
-              <span>{{ type.label }}</span>
-            </button>
+    <!-- 类别统计 -->
+    <div class="category-stats">
+      <div class="stats-grid">
+        <div 
+          v-for="category in trainingStats.categories" 
+          :key="category.name"
+          class="category-stat"
+          :style="{ borderColor: category.color }"
+        >
+          <div class="category-icon" :style="{ backgroundColor: category.color }">
+            {{ category.name.charAt(0) }}
+          </div>
+          <div class="category-info">
+            <div class="category-name">{{ category.name }}</div>
+            <div class="category-count">{{ category.count }} 项</div>
           </div>
         </div>
-        
-        <div class="filter-group">
-          <label>难度：</label>
-          <select v-model="filterDifficulty" class="filter-select">
-            <option v-for="option in difficultyOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          
-          <label>状态：</label>
-          <select v-model="filterCompleted" class="filter-select">
-            <option v-for="option in completedOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </div>
       </div>
     </div>
 
-    <!-- 训练模块网格 -->
-    <div class="modules-grid">
+    <!-- 搜索和筛选 -->
+    <div class="search-filter-section">
+      <div class="search-box">
+        <input 
+          v-model="searchKeyword"
+          type="text" 
+          placeholder="搜索训练项目..."
+          class="search-input"
+        >
+        <button @click="resetSearch" class="reset-btn">重置</button>
+      </div>
+      
+      <div class="filter-tabs">
+        <button 
+          v-for="category in categories"
+          :key="category"
+          @click="selectedCategory = category; currentPage = 1"
+          :class="['filter-tab', { active: selectedCategory === category }]"
+        >
+          {{ category }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 训练项目列表 -->
+    <div class="training-grid">
       <div 
-        v-for="module in filteredModules" 
-        :key="module.id"
-        class="module-card"
-        :class="{ completed: module.isCompleted }"
+        v-for="item in paginatedTrainingData" 
+        :key="item.id"
+        class="training-card"
+        @click="viewDetail(item)"
       >
-        <div class="module-header">
-          <div class="module-type">
-            <span class="type-icon large">{{ module.icon }}</span>
-            <span 
-              class="type-label"
-              :style="{ 
-                color: module.color,
-                backgroundColor: module.bgColor
-              }"
-            >
-              {{ module.name }}
-            </span>
-          </div>
-          
-          <div class="module-status">
-            <span v-if="module.isCompleted" class="completed-badge">
-              ✅ 已完成
-            </span>
-            <span v-else class="pending-badge">
-              ⏳ 待完成
-            </span>
+        <div class="card-header">
+          <div class="card-title">{{ item.title }}</div>
+          <div 
+            class="card-category"
+            :style="{ backgroundColor: getCategoryColor(item.category) }"
+          >
+            {{ item.category }}
           </div>
         </div>
         
-        <div class="module-content">
-          <p class="module-description">{{ module.description }}</p>
-          
-          <div class="module-info">
-            <div class="info-row">
-              <div class="info-item">
-                <span class="info-icon">⏱️</span>
-                <span>{{ module.duration }}分钟</span>
-              </div>
-              <div class="info-item">
-                <span class="info-icon">👥</span>
-                <span>{{ module.ageRange.min }}-{{ module.ageRange.max }}岁</span>
-              </div>
-              <div class="info-item">
-                <span 
-                  class="difficulty-badge"
-                  :style="{ 
-                    color: getDifficultyInfo(module.difficulty).color,
-                    backgroundColor: getDifficultyInfo(module.difficulty).bgColor
-                  }"
-                >
-                  {{ getDifficultyInfo(module.difficulty).text }}
-                </span>
-              </div>
-            </div>
+        <div class="card-content">
+          <div class="training-row">
+            <div class="training-label">🎯 训练目标</div>
+            <div class="training-value">{{ item.target }}</div>
           </div>
           
-          <div class="module-skills">
-            <h5>训练技能：</h5>
-            <div class="skills-tags">
-              <span 
-                v-for="skill in module.skills.slice(0, 3)" 
-                :key="skill"
-                class="skill-tag"
-              >
-                {{ skill }}
-              </span>
-              <span v-if="module.skills.length > 3" class="more-skills">
-                +{{ module.skills.length - 3 }}
-              </span>
-            </div>
+          <div class="training-row">
+            <div class="training-label">🛠️ 训练道具</div>
+            <div class="training-value">{{ item.equipment }}</div>
           </div>
           
-          <div v-if="module.isCompleted && module.lastScore" class="module-score">
-            <span class="score-label">上次得分：</span>
-            <span class="score-value">{{ module.lastScore }}</span>
+          <div class="training-row">
+            <div class="training-label">📝 训练内容</div>
+            <div class="training-value content-preview">
+              {{ item.content.length > 50 ? item.content.substring(0, 50) + '...' : item.content }}
+            </div>
           </div>
         </div>
         
-        <div class="module-actions">
-          <button class="action-btn detail-btn" @click="viewModuleDetail(module)">
-            查看详情
-          </button>
-          <button class="action-btn assessment-btn" @click="startTraining(module, true)">
-            能力评估
-          </button>
-          <button class="action-btn training-btn" @click="startTraining(module, false)">
-            开始训练
-          </button>
+        <div class="card-footer">
+          <button class="view-detail-btn">查看详情</button>
         </div>
       </div>
     </div>
 
-    <!-- 模块详情弹窗 -->
-    <div v-if="showModuleDetail" class="modal-overlay" @click="closeModal">
-      <div class="module-detail-modal" @click.stop>
+    <!-- 空状态 -->
+    <div v-if="paginatedTrainingData.length === 0" class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-text">没有找到匹配的训练项目</div>
+      <button @click="resetSearch" class="empty-reset-btn">重置搜索</button>
+    </div>
+
+    <!-- 分页 -->
+    <div v-if="totalPages > 1" class="pagination">
+      <button 
+        @click="changePage(currentPage - 1)"
+        :disabled="currentPage === 1"
+        class="pagination-btn"
+      >
+        上一页
+      </button>
+      
+      <div class="pagination-info">
+        第 {{ currentPage }} 页 / 共 {{ totalPages }} 页
+      </div>
+      
+      <button 
+        @click="changePage(currentPage + 1)"
+        :disabled="currentPage === totalPages"
+        class="pagination-btn"
+      >
+        下一页
+      </button>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <div v-if="showDetailModal" class="modal-overlay" @click="closeDetailModal">
+      <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h2>训练模块详情</h2>
-          <button class="close-btn" @click="closeModal">×</button>
+          <h3>{{ currentTrainingItem?.title }}</h3>
+          <button @click="closeDetailModal" class="modal-close">×</button>
         </div>
         
-        <div v-if="selectedModule" class="modal-content">
-          <div class="module-detail-header">
-            <div class="module-info-section">
-              <span class="type-icon huge">{{ selectedModule.icon }}</span>
-              <div class="module-details">
-                <h3>{{ selectedModule.name }}</h3>
-                <p>{{ selectedModule.description }}</p>
-                <div class="module-meta">
-                  <span class="meta-item">🕒 {{ selectedModule.duration }}分钟</span>
-                  <span class="meta-item">👥 {{ selectedModule.ageRange.min }}-{{ selectedModule.ageRange.max }}岁</span>
-                  <span 
-                    class="meta-item difficulty"
-                    :style="{ 
-                      color: getDifficultyInfo(selectedModule.difficulty).color,
-                      backgroundColor: getDifficultyInfo(selectedModule.difficulty).bgColor
-                    }"
-                  >
-                    {{ getDifficultyInfo(selectedModule.difficulty).text }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="detail-sections">
-            <!-- 训练技能 -->
-            <div class="detail-section">
-              <h4>🎯 训练技能</h4>
-              <div class="skills-grid">
-                <span 
-                  v-for="skill in selectedModule.skills" 
-                  :key="skill"
-                  class="skill-item"
-                >
-                  {{ skill }}
-                </span>
-              </div>
+        <div class="modal-body">
+          <div class="detail-section">
+            <div class="detail-item">
+              <div class="detail-label">🎯 训练目标</div>
+              <div class="detail-value">{{ currentTrainingItem?.target }}</div>
             </div>
             
-            <!-- 评估标准 -->
-            <div class="detail-section">
-              <h4>📊 评估标准</h4>
-              <ul class="criteria-list">
-                <li v-for="criteria in selectedModule.assessmentCriteria" :key="criteria">
-                  {{ criteria }}
-                </li>
-              </ul>
+            <div class="detail-item">
+              <div class="detail-label">🛠️ 训练道具</div>
+              <div class="detail-value">{{ currentTrainingItem?.equipment }}</div>
             </div>
             
-            <!-- 游戏说明 -->
-            <div class="detail-section">
-              <h4>🎮 游戏说明</h4>
-              <ol class="instructions-list">
-                <li v-for="instruction in selectedModule.gameInstructions" :key="instruction">
-                  {{ instruction }}
-                </li>
-              </ol>
+            <div class="detail-item">
+              <div class="detail-label">📝 训练内容</div>
+              <div class="detail-value">{{ currentTrainingItem?.content }}</div>
             </div>
             
-            <!-- 所需设备 -->
-            <div class="detail-section">
-              <h4>🛠️ 所需设备</h4>
-              <div class="equipment-grid">
-                <span 
-                  v-for="equipment in selectedModule.equipment" 
-                  :key="equipment"
-                  class="equipment-item"
-                >
-                  {{ equipment }}
-                </span>
-              </div>
-            </div>
-            
-            <!-- 个性化训练计划 -->
-            <div v-if="selectedModule.personalizedTraining" class="detail-section">
-              <h4>🎯 个性化训练计划</h4>
-              <div class="training-plan">
-                <div class="plan-header">
-                  <h5>{{ selectedModule.personalizedTraining.trainingPlan.name }}</h5>
-                  <span class="plan-frequency">{{ selectedModule.personalizedTraining.trainingPlan.frequency }}</span>
-                </div>
-                <div class="plan-recommendations">
-                  <h6>训练建议：</h6>
-                  <ul>
-                    <li v-for="rec in selectedModule.personalizedTraining.recommendations" :key="rec">
-                      {{ rec }}
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="modal-actions">
-            <button class="action-btn assessment-btn large" @click="startTraining(selectedModule, true)">
-              开始能力评估
-            </button>
-            <button class="action-btn training-btn large" @click="startTraining(selectedModule, false)">
-              开始训练游戏
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 游戏界面弹窗 -->
-    <div v-if="showGameInterface" class="modal-overlay game-overlay">
-      <div class="game-interface" @click.stop>
-        <div class="game-header">
-          <div class="game-info">
-            <h3>{{ gameState.currentModule?.name }}</h3>
-            <span class="game-type">{{ gameState.isAssessment ? '能力评估' : '训练游戏' }}</span>
-          </div>
-          <div class="game-controls">
-            <div class="timer">⏱️ {{ formatTime(gameState.timeRemaining) }}</div>
-            <div class="score">🎯 {{ gameState.score }}</div>
-            <button class="close-btn" @click="closeModal">×</button>
-          </div>
-        </div>
-        
-        <div class="game-content">
-          <div class="game-area">
-            <div class="game-instructions">
-              <h4>游戏说明：</h4>
-              <ul>
-                <li v-for="instruction in gameState.currentModule?.gameInstructions" :key="instruction">
-                  {{ instruction }}
-                </li>
-              </ul>
-            </div>
-            
-            <div class="game-simulator">
-              <div class="simulator-content">
-                <p>🎮 游戏模拟界面</p>
-                <p>根据{{ gameState.currentModule?.name }}的要求进行相应训练</p>
-                <button class="game-action-btn" @click="simulateGameAction">
-                  {{ gameState.isAssessment ? '完成评估动作' : '执行训练动作' }}
-                </button>
+            <div class="detail-item">
+              <div class="detail-label">🏷️ 训练类别</div>
+              <div 
+                class="detail-category"
+                :style="{ backgroundColor: getCategoryColor(currentTrainingItem?.category || '') }"
+              >
+                {{ currentTrainingItem?.category }}
               </div>
             </div>
           </div>
         </div>
         
-        <div class="game-footer">
-          <button class="action-btn pause-btn" @click="stopGame">暂停游戏</button>
-          <button class="action-btn end-btn" @click="endGame">结束游戏</button>
+        <div class="modal-footer">
+          <button @click="closeDetailModal" class="modal-btn">关闭</button>
         </div>
       </div>
     </div>
@@ -850,406 +378,335 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.training-base-container {
-  max-width: 1400px;
+.training-base {
+  padding: 20px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-/* 页面头部 */
+/* 页面标题 */
 .page-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.page-header h1 {
-  font-size: 2.5rem;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-}
-
-.header-desc {
-  color: #666;
-  font-size: 1.1rem;
-}
-
-/* 儿童档案卡片 */
-.child-profile-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
+  padding: 30px;
+  margin-bottom: 30px;
   color: white;
 }
 
-.child-info {
+.header-content {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
 }
 
-.child-avatar {
-  width: 60px;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.2);
+.title-section h1 {
+  margin: 0 0 10px 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.title-section p {
+  margin: 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.stats-section {
+  display: flex;
+  gap: 30px;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin-top: 5px;
+}
+
+/* 类别统计 */
+.category-stats {
+  margin-bottom: 30px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.category-stat {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  background: white;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.category-icon {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  backdrop-filter: blur(10px);
-}
-
-.child-details h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.3rem;
-}
-
-.child-details p {
-  margin: 0 0 0.5rem 0;
-  opacity: 0.9;
-}
-
-.child-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.strength-tag,
-.challenge-tag {
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  backdrop-filter: blur(10px);
-}
-
-.strength-tag {
-  background: rgba(76, 175, 80, 0.3);
-}
-
-.challenge-tag {
-  background: rgba(255, 152, 0, 0.3);
-}
-
-/* 统计信息 */
-.statistics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.stat-icon {
-  font-size: 2rem;
-}
-
-.stat-number {
-  font-size: 1.8rem;
-  font-weight: bold;
-  color: #2c3e50;
-}
-
-.stat-label {
-  color: #666;
-  font-size: 0.9rem;
-}
-
-/* 筛选区域 */
-.filters-section {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  margin-bottom: 2rem;
-}
-
-.filters-row {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.filter-group label {
-  color: #2c3e50;
-  font-weight: 500;
-  min-width: 80px;
-}
-
-.type-filters {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.type-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 20px;
-  background: white;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.type-btn:hover {
-  border-color: #42b883;
-  color: #42b883;
-}
-
-.type-btn.active {
-  border-color: #42b883;
-  background: #42b883;
   color: white;
+  font-weight: bold;
+  font-size: 1.2rem;
+  margin-right: 15px;
 }
 
-.type-icon {
+.category-info {
+  flex: 1;
+}
+
+.category-name {
+  font-weight: 600;
   font-size: 1rem;
+  margin-bottom: 4px;
 }
 
-.filter-select {
-  padding: 0.5rem 1rem;
+.category-count {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* 搜索和筛选 */
+.search-filter-section {
+  margin-bottom: 30px;
+}
+
+.search-box {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 12px 16px;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  margin-right: 1rem;
-}
-
-/* 模块网格 */
-.modules-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 1.5rem;
-}
-
-.module-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  overflow: hidden;
-  transition: all 0.3s ease;
-  border-left: 4px solid transparent;
-}
-
-.module-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-}
-
-.module-card.completed {
-  border-left-color: #4caf50;
-  background: linear-gradient(135deg, #e8f5e8 0%, #ffffff 100%);
-}
-
-.module-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.module-type {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.type-icon.large {
-  font-size: 2rem;
-}
-
-.type-label {
-  padding: 0.5rem 1rem;
-  border-radius: 12px;
-  font-weight: 500;
   font-size: 1rem;
+  transition: border-color 0.3s;
 }
 
-.module-status span {
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
+.search-input:focus {
+  outline: none;
+  border-color: #667eea;
 }
 
-.completed-badge {
-  background: #e8f5e8;
-  color: #4caf50;
-}
-
-.pending-badge {
-  background: #fff3e0;
-  color: #ff9800;
-}
-
-.module-content {
-  padding: 1.5rem;
-}
-
-.module-description {
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 1rem;
-}
-
-.module-info {
-  margin-bottom: 1rem;
-}
-
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.9rem;
-  color: #666;
-}
-
-.info-icon {
-  font-size: 1rem;
-}
-
-.difficulty-badge {
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.module-skills {
-  margin-bottom: 1rem;
-}
-
-.module-skills h5 {
-  color: #2c3e50;
-  margin: 0 0 0.5rem 0;
-  font-size: 0.9rem;
-}
-
-.skills-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-}
-
-.skill-tag {
-  background: #e8f5e8;
-  color: #42b883;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-}
-
-.more-skills {
-  background: #f0f0f0;
-  color: #666;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-}
-
-.module-score {
-  margin-bottom: 1rem;
-  padding: 0.5rem;
-  background: #f0f8ff;
+.reset-btn {
+  padding: 12px 24px;
+  background: #f5f5f5;
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
-  text-align: center;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s;
 }
 
-.score-label {
+.reset-btn:hover {
+  background: #e0e0e0;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  padding: 10px 20px;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s;
+}
+
+.filter-tab:hover {
+  border-color: #667eea;
+}
+
+.filter-tab.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+/* 训练项目网格 */
+.training-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.training-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 2px solid transparent;
+}
+
+.training-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.card-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.card-category {
+  padding: 4px 12px;
+  border-radius: 15px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.card-content {
+  margin-bottom: 15px;
+}
+
+.training-row {
+  display: flex;
+  margin-bottom: 10px;
+  align-items: flex-start;
+}
+
+.training-label {
+  font-weight: 500;
   color: #666;
+  min-width: 80px;
+  margin-right: 10px;
   font-size: 0.9rem;
 }
 
-.score-value {
-  color: #2196f3;
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin-left: 0.5rem;
-}
-
-.module-actions {
-  display: flex;
-  gap: 0.5rem;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #f0f0f0;
-  background: #f8f9fa;
-}
-
-.action-btn {
+.training-value {
   flex: 1;
-  padding: 0.5rem 1rem;
+  color: #333;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.content-preview {
+  color: #666;
+}
+
+.card-footer {
+  text-align: right;
+}
+
+.view-detail-btn {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
-  transition: all 0.2s ease;
+  transition: background 0.3s;
 }
 
-.detail-btn {
-  background: #e3f2fd;
-  color: #2196f3;
+.view-detail-btn:hover {
+  background: #5a6fd8;
 }
 
-.detail-btn:hover {
-  background: #bbdefb;
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
 }
 
-.assessment-btn {
-  background: #fff3e0;
-  color: #ff9800;
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
 }
 
-.assessment-btn:hover {
-  background: #ffe0b2;
+.empty-text {
+  font-size: 1.2rem;
+  margin-bottom: 20px;
 }
 
-.training-btn {
-  background: #42b883;
+.empty-reset-btn {
+  padding: 12px 24px;
+  background: #667eea;
   color: white;
-}
-
-.training-btn:hover {
-  background: #369870;
-}
-
-.action-btn.large {
-  padding: 1rem 2rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
   font-size: 1rem;
+  transition: background 0.3s;
 }
 
-/* 弹窗样式 */
+.empty-reset-btn:hover {
+  background: #5a6fd8;
+}
+
+/* 分页 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.pagination-btn {
+  padding: 10px 20px;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 1rem;
+  color: #666;
+}
+
+/* 详情弹窗 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1261,76 +718,37 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
 }
 
-.game-overlay {
-  background: rgba(0, 0, 0, 0.8);
-}
-
-.module-detail-modal,
-.game-interface {
+.modal-content {
   background: white;
   border-radius: 12px;
-  max-width: 800px;
-  width: 100%;
-  max-height: 90vh;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
   overflow-y: auto;
 }
 
-.game-interface {
-  max-width: 1000px;
-  max-height: 95vh;
-}
-
-.modal-header,
-.game-header {
+.modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
+  padding: 20px;
   border-bottom: 1px solid #e0e0e0;
 }
 
-.modal-header h2 {
+.modal-header h3 {
   margin: 0;
-  color: #2c3e50;
+  font-size: 1.5rem;
+  color: #333;
 }
 
-.game-info h3 {
-  margin: 0 0 0.5rem 0;
-  color: #2c3e50;
-}
-
-.game-type {
-  background: #e8f5e8;
-  color: #42b883;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-}
-
-.game-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.timer,
-.score {
-  background: #f0f8ff;
-  color: #2196f3;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-weight: 500;
-}
-
-.close-btn {
+.modal-close {
   background: none;
   border: none;
   font-size: 2rem;
   cursor: pointer;
-  color: #999;
+  color: #666;
   padding: 0;
   width: 30px;
   height: 30px;
@@ -1339,283 +757,97 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-.close-btn:hover {
-  color: #666;
+.modal-close:hover {
+  color: #333;
 }
 
-.modal-content,
-.game-content {
-  padding: 1.5rem;
+.modal-body {
+  padding: 20px;
 }
 
-/* 模块详情 */
-.module-detail-header {
-  margin-bottom: 2rem;
+.detail-section {
+  space-y: 20px;
 }
 
-.module-info-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
+.detail-item {
+  margin-bottom: 20px;
 }
 
-.type-icon.huge {
-  font-size: 3rem;
+.detail-label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+  font-size: 1rem;
 }
 
-.module-details h3 {
-  margin: 0 0 0.5rem 0;
-  color: #2c3e50;
-}
-
-.module-details p {
-  margin: 0 0 1rem 0;
+.detail-value {
   color: #666;
   line-height: 1.6;
+  font-size: 1rem;
 }
 
-.module-meta {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.meta-item {
-  padding: 0.25rem 0.5rem;
-  background: #e0e0e0;
-  border-radius: 8px;
-  font-size: 0.8rem;
-}
-
-.meta-item.difficulty {
+.detail-category {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.9rem;
   font-weight: 500;
 }
 
-.detail-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
+.modal-footer {
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+  text-align: right;
 }
 
-.detail-section h4 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-  font-size: 1.1rem;
-  border-bottom: 2px solid #42b883;
-  padding-bottom: 0.5rem;
-}
-
-.skills-grid,
-.equipment-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.skill-item,
-.equipment-item {
-  background: #e8f5e8;
-  color: #42b883;
-  padding: 0.3rem 0.75rem;
-  border-radius: 16px;
-  font-size: 0.9rem;
-}
-
-.criteria-list,
-.instructions-list {
-  margin: 0;
-  padding-left: 1.5rem;
-}
-
-.criteria-list li,
-.instructions-list li {
-  color: #666;
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
-
-.training-plan {
-  background: #f0f8ff;
-  padding: 1rem;
-  border-radius: 8px;
-}
-
-.plan-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.plan-header h5 {
-  margin: 0;
-  color: #2c3e50;
-}
-
-.plan-frequency {
-  background: #42b883;
-  color: white;
-  padding: 0.2rem 0.5rem;
-  border-radius: 8px;
-  font-size: 0.8rem;
-}
-
-.plan-recommendations h6 {
-  margin: 0 0 0.5rem 0;
-  color: #2c3e50;
-}
-
-/* 游戏界面 */
-.game-area {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.game-instructions h4 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-}
-
-.game-instructions ul {
-  margin: 0 0 2rem 0;
-  padding-left: 1.5rem;
-}
-
-.game-instructions li {
-  color: #666;
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
-
-.game-simulator {
-  background: white;
-  border: 2px dashed #e0e0e0;
-  border-radius: 8px;
-  padding: 2rem;
-  text-align: center;
-  min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.simulator-content p {
-  color: #666;
-  margin-bottom: 1rem;
-  font-size: 1.1rem;
-}
-
-.game-action-btn {
-  background: #42b883;
+.modal-btn {
+  padding: 10px 20px;
+  background: #667eea;
   color: white;
   border: none;
-  padding: 1rem 2rem;
   border-radius: 8px;
-  font-size: 1rem;
   cursor: pointer;
-  transition: background 0.3s ease;
+  font-size: 1rem;
+  transition: background 0.3s;
 }
 
-.game-action-btn:hover {
-  background: #369870;
-}
-
-.game-footer {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #e0e0e0;
-}
-
-.pause-btn {
-  background: #ff9800;
-  color: white;
-}
-
-.pause-btn:hover {
-  background: #f57c00;
-}
-
-.end-btn {
-  background: #f44336;
-  color: white;
-}
-
-.end-btn:hover {
-  background: #d32f2f;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  padding-top: 2rem;
-  border-top: 1px solid #e0e0e0;
-  margin-top: 2rem;
+.modal-btn:hover {
+  background: #5a6fd8;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .training-base-container {
-    padding: 1rem;
+  .training-base {
+    padding: 15px;
   }
   
-  .page-header h1 {
-    font-size: 2rem;
-  }
-  
-  .child-info {
+  .header-content {
     flex-direction: column;
+    gap: 20px;
     text-align: center;
   }
   
-  .statistics-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
-  
-  .filters-row {
-    gap: 1rem;
-  }
-  
-  .filter-group {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .type-filters {
+  .stats-section {
     justify-content: center;
   }
   
-  .modules-grid {
+  .training-grid {
     grid-template-columns: 1fr;
   }
   
-  .module-actions {
-    flex-direction: column;
+  .filter-tabs {
+    justify-content: center;
   }
   
-  .module-info-section {
+  .pagination {
     flex-direction: column;
-    text-align: center;
+    gap: 15px;
   }
   
-  .game-controls {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .game-footer {
-    flex-direction: column;
-  }
-  
-  .modal-actions {
-    flex-direction: column;
+  .modal-content {
+    width: 95%;
+    margin: 20px;
   }
 }
 </style>

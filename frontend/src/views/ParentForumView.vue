@@ -34,7 +34,7 @@ interface Reply {
   }
   createdAt: string
   likes: number
-  parentReplyId?: number // 用于嵌套回复
+  parentReplyId?: number | null // 用于嵌套回复
 }
 
 // 论坛帖子数据
