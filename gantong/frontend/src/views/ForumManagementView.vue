@@ -1,6 +1,8 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { getMyProfile, type DoctorProfile as Profile } from '@/services/doctor'
+import { HospitalForumService, type HospitalPostItem, type HospitalReplyItem } from '@/services/hospital-forum'
 
 interface ForumPost {
   id: number
@@ -44,179 +46,9 @@ interface Reply {
   isOfficial?: boolean
 }
 
-// 共享论坛帖子数据（从家长端论坛获取）
-const forumPosts = ref<ForumPost[]>([
-  {
-    id: 1,
-    title: '我家5岁儿子的感统训练进步分享',
-    content: '经过半年的感统训练，孩子的平衡能力和注意力都有了明显改善。从最初的单脚站立不到3秒，到现在可以稳定站立10秒以上。想和大家分享一下我们的训练经历和心得，希望能帮助到有同样困扰的家长朋友们。\n\n训练初期孩子很抗拒，经常哭闹不配合。我们采用了游戏化的方式，把训练包装成有趣的小游戏，逐渐建立了孩子的信心。现在他每天都主动要求做训练，看到孩子的进步，我们全家都很开心。',
-    category: '训练分享',
-    author: {
-      name: '小明妈妈',
-      avatar: '/api/placeholder/50/50',
-      childAge: 5,
-      location: '北京'
-    },
-    createdAt: '2024-07-08 09:30:00',
-    likes: 28,
-    replies: 15,
-    views: 156,
-    isSticky: true,
-    tags: ['进步分享', '平衡训练', '注意力'],
-    images: ['/api/placeholder/300/200', '/api/placeholder/300/200'],
-    status: 'published',
-    hasDoctoReply: true,
-    urgencyLevel: 'low'
-  },
-  {
-    id: 2,
-    title: '孩子触觉敏感，求经验分享',
-    content: '我家女儿3岁半，对触觉特别敏感。不愿意穿毛衣，洗头时会大哭，剪指甲也很困难。去医院检查说是感统失调中的触觉敏感问题。\n\n想请教有经验的家长，你们是怎么帮助孩子克服触觉敏感的？有什么好的训练方法吗？现在每天的生活都很困难，希望能得到大家的建议和支持。',
-    category: '求助咨询',
-    author: {
-      name: '小花爸爸',
-      avatar: '/api/placeholder/50/50',
-      childAge: 3,
-      location: '上海'
-    },
-    createdAt: '2024-07-08 11:15:00',
-    likes: 12,
-    replies: 23,
-    views: 89,
-    tags: ['触觉敏感', '求助', '日常护理'],
-    status: 'published',
-    hasDoctoReply: false,
-    urgencyLevel: 'high'
-  },
-  {
-    id: 3,
-    title: '感统训练中心选择经验分享',
-    content: '最近在为孩子选择感统训练中心，走访了好几家机构。想和大家分享一下我的考察心得，希望能帮助其他家长做出更好的选择。\n\n主要关注的几个方面：\n1. 师资力量：是否有专业康复治疗师\n2. 训练设备：器械是否齐全和安全\n3. 环境设施：场地是否宽敞明亮\n4. 训练方案：是否能制定个性化方案\n5. 费用合理：性价比是否合适\n\n最终选择了离家比较近的一家，虽然不是最便宜的，但是老师很专业，孩子也喜欢那里的环境。',
-    category: '机构推荐',
-    author: {
-      name: '乐乐妈妈',
-      avatar: '/api/placeholder/50/50',
-      childAge: 4,
-      location: '广州'
-    },
-    createdAt: '2024-07-07 16:45:00',
-    likes: 19,
-    replies: 8,
-    views: 67,
-    tags: ['机构选择', '经验分享'],
-    status: 'published',
-    hasDoctoReply: false,
-    urgencyLevel: 'medium'
-  },
-  {
-    id: 4,
-    title: '家庭感统训练小游戏推荐',
-    content: '分享几个在家就能做的感统训练小游戏，简单易行，孩子也很喜欢：\n\n1. 平衡木游戏：用胶带在地上贴一条直线，让孩子沿着线走\n2. 触觉袋游戏：准备不同材质的小物品，让孩子闭眼触摸猜测\n3. 抛接球游戏：训练手眼协调能力\n4. 滚筒游戏：用大毛巾包裹孩子轻轻滚动\n\n这些游戏不需要特殊器械，在家就能做，效果也不错。关键是要坚持，每天花15-20分钟就可以了。',
-    category: '家庭训练',
-    author: {
-      name: '阳阳妈妈',
-      avatar: '/api/placeholder/50/50',
-      childAge: 6,
-      location: '深圳'
-    },
-    createdAt: '2024-07-07 14:20:00',
-    likes: 35,
-    replies: 12,
-    views: 134,
-    tags: ['家庭训练', '小游戏', 'DIY'],
-    status: 'published',
-    hasDoctoReply: true,
-    urgencyLevel: 'low'
-  },
-  {
-    id: 5,
-    title: '孩子确诊感统失调后的心路历程',
-    content: '当医生告诉我孩子有感统失调时，我的心情五味杂陈。担心、焦虑、自责各种情绪涌上心头。\n\n刚开始我无法接受这个事实，觉得是不是我照顾不周导致的。后来通过学习了解，才知道这不是任何人的错，而是需要科学的训练和干预。\n\n现在经过几个月的训练，孩子有了很大进步。我想告诉刚刚知道孩子有感统问题的家长们：不要害怕，不要自责，早发现早干预，孩子一定会越来越好的！',
-    category: '心情分享',
-    author: {
-      name: '豆豆妈妈',
-      avatar: '/api/placeholder/50/50',
-      childAge: 4,
-      location: '成都'
-    },
-    createdAt: '2024-07-06 20:30:00',
-    likes: 24,
-    replies: 18,
-    views: 78,
-    tags: ['心路历程', '鼓励', '新手家长'],
-    status: 'published',
-    hasDoctoReply: false,
-    urgencyLevel: 'medium'
-  },
-  {
-    id: 6,
-    title: '感统训练费用和效果的性价比分析',
-    content: '很多家长都关心感统训练的费用问题，我来分享一下我们家的情况。\n\n我们选择的机构每节课200元，一周3次课，一个月大概2400元。虽然不便宜，但看到孩子的进步，觉得这钱花得值得。\n\n建议大家在选择时不要只看价格，要综合考虑效果。便宜的不一定不好，贵的也不一定就是最好的。关键是要找到适合自己孩子的训练方式。',
-    category: '费用讨论',
-    author: {
-      name: '星星爸爸',
-      avatar: '/api/placeholder/50/50',
-      childAge: 5,
-      location: '杭州'
-    },
-    createdAt: '2024-07-06 15:10:00',
-    likes: 16,
-    replies: 25,
-    views: 92,
-    tags: ['费用', '性价比', '理性讨论'],
-    status: 'published',
-    hasDoctoReply: false,
-    urgencyLevel: 'low'
-  }
-])
+const forumPosts = ref<ForumPost[]>([])
+const replies = ref<Reply[]>([])
 
-// 回复数据
-const replies = ref<Reply[]>([
-  {
-    id: 1,
-    postId: 1,
-    content: '作为康复医师，我为您孩子的进步感到高兴。平衡能力的改善确实是感统训练的重要指标。建议您继续坚持训练，同时可以适当增加一些前庭觉训练项目，这有助于进一步提升孩子的空间感知能力。如果有任何疑问，欢迎随时咨询。',
-    author: {
-      name: '张慧敏医生',
-      avatar: '/api/placeholder/40/40',
-      title: '主任医师',
-      hospital: '北京儿童医院',
-      isDoctor: true
-    },
-    createdAt: '2024-07-08 15:30:00',
-    likes: 12,
-    isOfficial: true
-  },
-  {
-    id: 2,
-    postId: 1,
-    content: '太棒了！我家孩子也在做感统训练，看到你们的进步我更有信心了。请问你们训练了多长时间才看到明显效果的？',
-    author: {
-      name: '佳佳妈妈',
-      avatar: '/api/placeholder/40/40',
-      childAge: 4
-    },
-    createdAt: '2024-07-08 10:15:00',
-    likes: 5
-  },
-  {
-    id: 3,
-    postId: 4,
-    content: '这些家庭训练方法很实用！作为治疗师，我补充几点建议：\n1. 平衡木游戏可以逐渐增加难度，比如闭眼走或倒着走\n2. 触觉袋可以加入不同温度的物品\n3. 每个游戏时间控制在孩子注意力集中的范围内\n\n感谢家长们的用心分享，这对其他家庭很有帮助。',
-    author: {
-      name: '李建华医生',
-      avatar: '/api/placeholder/40/40',
-      title: '副主任医师',
-      hospital: '上海市儿童医院',
-      isDoctor: true
-    },
-    createdAt: '2024-07-07 19:20:00',
-    likes: 18,
-    isOfficial: true
-  }
-])
-
-// 页面状态
 const selectedPost = ref<ForumPost | null>(null)
 const showPostDetail = ref(false)
 const showReplyModal = ref(false)
@@ -226,13 +58,11 @@ const filterStatus = ref('全部')
 const searchKeyword = ref('')
 const sortBy = ref('latest')
 
-// 医生回复表单
 const doctorReply = ref({
   content: '',
-  isOfficial: true
+  isOfficial: true,
 })
 
-// 当前医生信息（从后端加载）
 const doctorProfile = ref<Profile | null>(null)
 const loadingDoctor = ref(false)
 
@@ -240,127 +70,168 @@ const loadDoctorProfile = async () => {
   try {
     loadingDoctor.value = true
     doctorProfile.value = await getMyProfile()
+  } catch {
+    ElMessage.error('加载医生资料失败，请稍后重试')
   } finally {
     loadingDoctor.value = false
   }
 }
 
-onMounted(() => {
-  loadDoctorProfile()
+const mapPriority = (p: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'): 'low' | 'medium' | 'high' => {
+  if (p === 'HIGH' || p === 'URGENT') return 'high'
+  if (p === 'LOW') return 'low'
+  return 'medium'
+}
+
+const mapPost = (p: HospitalPostItem): ForumPost => ({
+  id: p.id,
+  title: p.title,
+  content: p.content,
+  category: p.category?.name || '未分类',
+  author: { name: p.author?.email || p.author?.phone || '家长', avatar: '' },
+  createdAt: p.createdAt,
+  updatedAt: p.lastReplyAt || p.updatedAt,
+  likes: p.stats?.likes || 0,
+  replies: p.stats?.replies || 0,
+  views: p.stats?.views || p.viewsCount || 0,
+  tags: p.tags || [],
+  status: 'published',
+  hasDoctoReply: !!p.hasOfficialReply,
+  urgencyLevel: mapPriority(p.priority || 'NORMAL'),
 })
 
-// 筛选选项
-const categoryOptions = [
-  '全部',
-  '训练分享',
-  '求助咨询',
-  '机构推荐',
-  '家庭训练',
-  '心情分享',
-  '费用讨论',
-  '康复经验',
-  '医院就诊'
-]
+const loadHospitalPosts = async () => {
+  try {
+    const sortMap: Record<string, 'latestReply' | 'latestPost' | 'mostReplied'> = {
+      latest: 'latestReply',
+      created: 'latestPost',
+      replies: 'mostReplied',
+    }
+    const params = { page: 1, pageSize: 20, sortBy: sortMap[sortBy.value] || 'latestReply' }
+    const res = await HospitalForumService.listPosts(params)
+    forumPosts.value = res.items.map(mapPost)
+  } catch {
+    forumPosts.value = []
+    ElMessage.error('加载帖子列表失败，请稍后重试')
+  }
+}
+
+const loadHospitalReplies = async (postId: number) => {
+  try {
+    const res = await HospitalForumService.listReplies(postId, { page: 1, pageSize: 100 })
+    replies.value = res.items.map((r: HospitalReplyItem) => ({
+      id: r.id,
+      postId,
+      content: r.content,
+      author: { name: r.author?.email || r.author?.phone || '用户', avatar: '', isDoctor: r.isOfficial },
+      createdAt: r.createdAt,
+      likes: 0,
+      parentReplyId: undefined,
+      isOfficial: r.isOfficial,
+    }))
+  } catch {
+    replies.value = replies.value.filter((reply) => reply.postId !== postId)
+    ElMessage.error('加载帖子回复失败，请稍后重试')
+  }
+}
+
+const categoryOptions = ['全部', '训练分享', '求助咨询', '机构推荐', '家庭训练', '心情分享', '费用讨论', '康复经验', '医院就诊']
 
 const urgencyOptions = [
   { value: '全部', label: '全部优先级' },
   { value: 'high', label: '高优先级' },
   { value: 'medium', label: '中优先级' },
-  { value: 'low', label: '低优先级' }
+  { value: 'low', label: '低优先级' },
 ]
 
 const statusOptions = [
   { value: '全部', label: '全部状态' },
   { value: 'replied', label: '已回复' },
-  { value: 'unreplied', label: '待回复' }
+  { value: 'unreplied', label: '待回复' },
 ]
 
 const sortOptions = [
   { value: 'latest', label: '最新回复' },
   { value: 'created', label: '发布时间' },
   { value: 'urgency', label: '优先级' },
-  { value: 'replies', label: '回复最多' }
+  { value: 'replies', label: '回复最多' },
 ]
 
-// 过滤后的帖子列表
 const filteredPosts = computed(() => {
-  let posts = forumPosts.value.filter(post => {
+  const posts = forumPosts.value.filter((post) => {
     const categoryMatch = filterCategory.value === '全部' || post.category === filterCategory.value
     const urgencyMatch = filterUrgency.value === '全部' || post.urgencyLevel === filterUrgency.value
-    const statusMatch = filterStatus.value === '全部' || 
+    const statusMatch =
+      filterStatus.value === '全部' ||
       (filterStatus.value === 'replied' && post.hasDoctoReply) ||
       (filterStatus.value === 'unreplied' && !post.hasDoctoReply)
-    const keywordMatch = searchKeyword.value === '' || 
+    const keywordMatch =
+      searchKeyword.value === '' ||
       post.title.includes(searchKeyword.value) ||
       post.content.includes(searchKeyword.value) ||
       post.author.name.includes(searchKeyword.value)
-    
+
     return categoryMatch && urgencyMatch && statusMatch && keywordMatch && post.status === 'published'
   })
-  
-  // 排序
+
   switch (sortBy.value) {
     case 'created':
       posts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       break
-    case 'urgency':
+    case 'urgency': {
       const urgencyOrder = { high: 3, medium: 2, low: 1 }
       posts.sort((a, b) => urgencyOrder[b.urgencyLevel] - urgencyOrder[a.urgencyLevel])
       break
+    }
     case 'replies':
       posts.sort((a, b) => b.replies - a.replies)
       break
-    default: // latest
+    default:
       posts.sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
   }
-  
+
   return posts
 })
 
-// 获取帖子回复
-const getPostReplies = (postId: number) => {
-  return replies.value.filter(reply => reply.postId === postId)
-}
+const getPostReplies = (postId: number) => replies.value.filter((reply) => reply.postId === postId)
 
-// 统计数据
 const statistics = computed(() => {
   const totalPosts = forumPosts.value.length
-  const unrepliedPosts = forumPosts.value.filter(p => !p.hasDoctoReply).length
-  const highUrgencyPosts = forumPosts.value.filter(p => p.urgencyLevel === 'high').length
-  const myReplies = replies.value.filter(r => r.author.isDoctor).length
-  
+  const unrepliedPosts = forumPosts.value.filter((p) => !p.hasDoctoReply).length
+  const highUrgencyPosts = forumPosts.value.filter((p) => p.urgencyLevel === 'high').length
+  const myReplies = replies.value.filter((r) => r.author.isDoctor).length
+
   return { totalPosts, unrepliedPosts, highUrgencyPosts, myReplies }
 })
 
-// 获取优先级显示信息
+onMounted(async () => {
+  await Promise.all([loadDoctorProfile(), loadHospitalPosts()])
+})
+
 const getUrgencyInfo = (urgency: string) => {
   switch (urgency) {
     case 'high':
-      return { text: '高', color: '#f44336', bgColor: '#ffebee', icon: '🔥' }
+      return { text: '高', color: '#f44336', bgColor: '#ffebee', icon: '🚨' }
     case 'medium':
-      return { text: '中', color: '#ff9800', bgColor: '#fff3e0', icon: '⚡' }
+      return { text: '中', color: '#ff9800', bgColor: '#fff3e0', icon: '⚠️' }
     case 'low':
-      return { text: '低', color: '#4caf50', bgColor: '#e8f5e8', icon: '📝' }
+      return { text: '低', color: '#4caf50', bgColor: '#e8f5e8', icon: '🔵' }
     default:
-      return { text: urgency, color: '#666', bgColor: '#f0f0f0', icon: '📄' }
+      return { text: urgency, color: '#666', bgColor: '#f0f0f0', icon: '📝' }
   }
 }
 
-// 查看帖子详情
-const viewPostDetail = (post: ForumPost) => {
+const viewPostDetail = async (post: ForumPost) => {
   selectedPost.value = post
   showPostDetail.value = true
-  // 增加浏览量
-  post.views++
+  await loadHospitalReplies(post.id)
 }
 
-// 回复帖子
 const replyToPost = (post: ForumPost) => {
   selectedPost.value = post
   showReplyModal.value = true
 }
 
-// 关闭弹窗
 const closeModal = () => {
   showPostDetail.value = false
   showReplyModal.value = false
@@ -368,60 +239,50 @@ const closeModal = () => {
   doctorReply.value.content = ''
 }
 
-// 提交医生回复
-const submitDoctorReply = () => {
+const submitDoctorReply = async () => {
   if (!doctorReply.value.content.trim()) {
-    alert('请输入回复内容')
+    ElMessage.warning('请输入回复内容')
     return
   }
-  
   if (!selectedPost.value) return
-  
-  const reply: Reply = {
-    id: Date.now(),
-    postId: selectedPost.value.id,
-    content: doctorReply.value.content,
-    author: {
-      name: doctorProfile.value?.name || '医生',
-      avatar: '/api/placeholder/80/80',
-      title: doctorProfile.value?.title,
-      hospital: doctorProfile.value?.hospital,
-      isDoctor: true
-    },
-    createdAt: new Date().toISOString(),
-    likes: 0,
-    isOfficial: doctorReply.value.isOfficial
+
+  try {
+    await HospitalForumService.createReply(selectedPost.value.id, {
+      content: doctorReply.value.content,
+      isOfficial: doctorReply.value.isOfficial,
+    })
+    await loadHospitalReplies(selectedPost.value.id)
+
+    selectedPost.value.hasDoctoReply = true
+    selectedPost.value.replies = replies.value.filter((r) => r.postId === selectedPost.value!.id).length
+
+    doctorReply.value.content = ''
+    closeModal()
+    ElMessage.success('回复发布成功')
+  } catch {
+    ElMessage.error('回复发布失败，请稍后重试')
   }
-
-  replies.value.push(reply)
-  selectedPost.value.replies++
-  selectedPost.value.hasDoctoReply = true
-
-  doctorReply.value.content = ''
-  closeModal()
-  alert('回复发布成功！')
 }
 
-// 格式化时间
 const formatDateTime = (dateTime: string) => {
   const date = new Date(dateTime)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
   const diffDays = Math.floor(diffHours / 24)
-  
+
   if (diffHours < 1) {
     return '刚刚'
-  } else if (diffHours < 24) {
-    return `${diffHours}小时前`
-  } else if (diffDays < 7) {
-    return `${diffDays}天前`
-  } else {
-    return date.toLocaleDateString('zh-CN')
   }
+  if (diffHours < 24) {
+    return `${diffHours}小时前`
+  }
+  if (diffDays < 7) {
+    return `${diffDays}天前`
+  }
+  return date.toLocaleDateString('zh-CN')
 }
 
-// 截取内容
 const truncateContent = (content: string, maxLength = 120) => {
   if (content.length <= maxLength) return content
   return content.substring(0, maxLength) + '...'
@@ -430,42 +291,39 @@ const truncateContent = (content: string, maxLength = 120) => {
 
 <template>
   <div class="forum-management-container">
-    <!-- 页面头部 -->
     <div class="page-header">
       <h1>家长论坛管理</h1>
       <p class="header-desc">查看家长帖子，提供专业医疗建议和支持</p>
     </div>
 
-    <!-- 医生信息卡片 -->
     <div class="doctor-card">
       <div class="doctor-info">
         <div class="doctor-avatar">{{ (doctorProfile?.name || '医').charAt(0) }}</div>
         <div class="doctor-details">
-          <h3>{{ doctorProfile?.name || '—' }}</h3>
+          <h3>{{ doctorProfile?.name || '-' }}</h3>
           <p v-if="doctorProfile?.nickname">昵称：{{ doctorProfile?.nickname }}</p>
-          <p>{{ doctorProfile?.hospital || '—' }}</p>
+          <p>{{ doctorProfile?.hospital || '-' }}</p>
         </div>
       </div>
     </div>
 
-    <!-- 统计信息 -->
     <div class="statistics-bar">
       <div class="stat-item">
-        <span class="stat-icon">📊</span>
+        <span class="stat-icon">📝</span>
         <div class="stat-content">
           <span class="stat-value">{{ statistics.totalPosts }}</span>
           <span class="stat-label">总帖子数</span>
         </div>
       </div>
       <div class="stat-item urgent">
-        <span class="stat-icon">🔥</span>
+        <span class="stat-icon">⏳</span>
         <div class="stat-content">
           <span class="stat-value">{{ statistics.unrepliedPosts }}</span>
           <span class="stat-label">待回复</span>
         </div>
       </div>
       <div class="stat-item priority">
-        <span class="stat-icon">⚡</span>
+        <span class="stat-icon">🔥</span>
         <div class="stat-content">
           <span class="stat-value">{{ statistics.highUrgencyPosts }}</span>
           <span class="stat-label">高优先级</span>
@@ -480,37 +338,36 @@ const truncateContent = (content: string, maxLength = 120) => {
       </div>
     </div>
 
-    <!-- 筛选和搜索 -->
     <div class="filters-section">
       <div class="filters-row">
         <div class="search-group">
-          <input 
+          <input
             v-model="searchKeyword"
-            type="text" 
+            type="text"
             placeholder="搜索帖子标题、内容或作者..."
             class="search-input"
-          >
+          />
         </div>
-        
+
         <div class="filter-group">
           <select v-model="filterCategory" class="filter-select">
             <option v-for="category in categoryOptions" :key="category" :value="category">
               {{ category }}
             </option>
           </select>
-          
+
           <select v-model="filterUrgency" class="filter-select">
             <option v-for="option in urgencyOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
-          
+
           <select v-model="filterStatus" class="filter-select">
             <option v-for="option in statusOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
-          
+
           <select v-model="sortBy" class="filter-select">
             <option v-for="option in sortOptions" :key="option.value" :value="option.value">
               {{ option.label }}
@@ -520,50 +377,38 @@ const truncateContent = (content: string, maxLength = 120) => {
       </div>
     </div>
 
-    <!-- 帖子列表 -->
     <div class="posts-list">
-      <div 
-        v-for="post in filteredPosts" 
+      <div
+        v-for="post in filteredPosts"
         :key="post.id"
         class="post-card"
-        :class="{ 
-          sticky: post.isSticky,
-          'high-priority': post.urgencyLevel === 'high',
-          'unreplied': !post.hasDoctoReply
-        }"
+        :class="{ sticky: post.isSticky, 'high-priority': post.urgencyLevel === 'high', unreplied: !post.hasDoctoReply }"
       >
         <div class="post-header">
           <div class="post-meta">
             <div class="urgency-badge">
               <span class="urgency-icon">{{ getUrgencyInfo(post.urgencyLevel).icon }}</span>
-              <span 
+              <span
                 class="urgency-text"
-                :style="{ 
-                  color: getUrgencyInfo(post.urgencyLevel).color,
-                  backgroundColor: getUrgencyInfo(post.urgencyLevel).bgColor
-                }"
+                :style="{ color: getUrgencyInfo(post.urgencyLevel).color, backgroundColor: getUrgencyInfo(post.urgencyLevel).bgColor }"
               >
                 {{ getUrgencyInfo(post.urgencyLevel).text }}优先级
               </span>
             </div>
-            
+
             <div class="category-tag">{{ post.category }}</div>
-            
-            <div v-if="!post.hasDoctoReply" class="reply-status unreplied">
-              待回复
-            </div>
-            <div v-else class="reply-status replied">
-              已回复
-            </div>
+
+            <div v-if="!post.hasDoctoReply" class="reply-status unreplied">待回复</div>
+            <div v-else class="reply-status replied">已回复</div>
           </div>
-          
+
           <div class="post-time">{{ formatDateTime(post.createdAt) }}</div>
         </div>
-        
+
         <div class="post-content">
           <h3 class="post-title">{{ post.title }}</h3>
           <p class="post-preview">{{ truncateContent(post.content) }}</p>
-          
+
           <div class="author-info">
             <div class="author-avatar">{{ post.author.name.charAt(0) }}</div>
             <div class="author-details">
@@ -574,78 +419,58 @@ const truncateContent = (content: string, maxLength = 120) => {
               </div>
             </div>
           </div>
-          
+
           <div class="post-tags">
-            <span 
-              v-for="tag in post.tags" 
-              :key="tag"
-              class="post-tag"
-            >
-              #{{ tag }}
-            </span>
+            <span v-for="tag in post.tags" :key="tag" class="post-tag">#{{ tag }}</span>
           </div>
         </div>
-        
+
         <div class="post-stats">
-          <span class="stat-item">👁️ {{ post.views }}</span>
-          <span class="stat-item">👍 {{ post.likes }}</span>
-          <span class="stat-item">💬 {{ post.replies }}</span>
+          <span class="stat-item">浏览 {{ post.views }}</span>
+          <span class="stat-item">点赞 {{ post.likes }}</span>
+          <span class="stat-item">回复 {{ post.replies }}</span>
         </div>
-        
+
         <div class="post-actions">
-          <button 
-            class="action-btn view-btn"
-            @click="viewPostDetail(post)"
-          >
-            查看详情
-          </button>
-          <button 
-            class="action-btn reply-btn"
-            @click="replyToPost(post)"
-            :class="{ primary: !post.hasDoctoReply }"
-          >
+          <button class="action-btn view-btn" @click="viewPostDetail(post)">查看详情</button>
+          <button class="action-btn reply-btn" @click="replyToPost(post)" :class="{ primary: !post.hasDoctoReply }">
             {{ post.hasDoctoReply ? '继续回复' : '专业回复' }}
           </button>
         </div>
       </div>
     </div>
-    
+
     <div v-if="filteredPosts.length === 0" class="no-posts">
       <p>暂时没有相关帖子</p>
     </div>
 
-    <!-- 帖子详情弹窗 -->
     <div v-if="showPostDetail" class="modal-overlay" @click="closeModal">
       <div class="post-detail-modal" @click.stop>
         <div class="modal-header">
           <h2>帖子详情</h2>
           <button class="close-btn" @click="closeModal">×</button>
         </div>
-        
+
         <div v-if="selectedPost" class="modal-content">
-          <!-- 帖子内容 -->
           <div class="post-detail">
             <div class="post-detail-header">
               <div class="urgency-info">
                 <span class="urgency-icon">{{ getUrgencyInfo(selectedPost.urgencyLevel).icon }}</span>
-                <span 
+                <span
                   class="urgency-label"
-                  :style="{ 
-                    color: getUrgencyInfo(selectedPost.urgencyLevel).color,
-                    backgroundColor: getUrgencyInfo(selectedPost.urgencyLevel).bgColor
-                  }"
+                  :style="{ color: getUrgencyInfo(selectedPost.urgencyLevel).color, backgroundColor: getUrgencyInfo(selectedPost.urgencyLevel).bgColor }"
                 >
                   {{ getUrgencyInfo(selectedPost.urgencyLevel).text }}优先级
                 </span>
               </div>
-              
+
               <div class="category-info">
                 <span class="category-label">{{ selectedPost.category }}</span>
               </div>
             </div>
-            
+
             <h1 class="post-detail-title">{{ selectedPost.title }}</h1>
-            
+
             <div class="author-section">
               <div class="author-avatar large">{{ selectedPost.author.name.charAt(0) }}</div>
               <div class="author-details">
@@ -657,35 +482,26 @@ const truncateContent = (content: string, maxLength = 120) => {
                 <div class="post-time">{{ formatDateTime(selectedPost.createdAt) }}</div>
               </div>
             </div>
-            
-            <div class="post-detail-content">
-              {{ selectedPost.content }}
-            </div>
-            
+
+            <div class="post-detail-content">{{ selectedPost.content }}</div>
+
             <div class="post-detail-tags">
-              <span 
-                v-for="tag in selectedPost.tags" 
-                :key="tag"
-                class="post-tag"
-              >
-                #{{ tag }}
-              </span>
+              <span v-for="tag in selectedPost.tags" :key="tag" class="post-tag">#{{ tag }}</span>
             </div>
-            
+
             <div class="post-detail-stats">
-              <span class="stat-item">👁️ {{ selectedPost.views }}</span>
-              <span class="stat-item">👍 {{ selectedPost.likes }}</span>
-              <span class="stat-item">💬 {{ selectedPost.replies }}</span>
+              <span class="stat-item">浏览 {{ selectedPost.views }}</span>
+              <span class="stat-item">点赞 {{ selectedPost.likes }}</span>
+              <span class="stat-item">回复 {{ selectedPost.replies }}</span>
             </div>
           </div>
-          
-          <!-- 回复列表 -->
+
           <div class="replies-section">
             <h3>回复 ({{ getPostReplies(selectedPost.id).length }})</h3>
-            
+
             <div class="replies-list">
-              <div 
-                v-for="reply in getPostReplies(selectedPost.id)" 
+              <div
+                v-for="reply in getPostReplies(selectedPost.id)"
                 :key="reply.id"
                 class="reply-item"
                 :class="{ official: reply.isOfficial }"
@@ -707,31 +523,24 @@ const truncateContent = (content: string, maxLength = 120) => {
                       <div class="reply-time">{{ formatDateTime(reply.createdAt) }}</div>
                     </div>
                   </div>
-                  
-                  <div v-if="reply.isOfficial" class="official-badge">
-                    官方回复
-                  </div>
+
+                  <div v-if="reply.isOfficial" class="official-badge">官方回复</div>
                 </div>
-                
-                <div class="reply-content">
-                  {{ reply.content }}
-                </div>
-                
+
+                <div class="reply-content">{{ reply.content }}</div>
+
                 <div class="reply-actions">
-                  <span class="stat-item">👍 {{ reply.likes }}</span>
+                  <span class="stat-item">点赞 {{ reply.likes }}</span>
                 </div>
               </div>
             </div>
-            
+
             <div v-if="getPostReplies(selectedPost.id).length === 0" class="no-replies">
               <p>还没有回复</p>
             </div>
-            
+
             <div class="quick-reply">
-              <button 
-                class="reply-btn primary"
-                @click="replyToPost(selectedPost)"
-              >
+              <button class="reply-btn primary" @click="replyToPost(selectedPost)">
                 {{ selectedPost.hasDoctoReply ? '继续回复' : '专业回复' }}
               </button>
             </div>
@@ -740,58 +549,50 @@ const truncateContent = (content: string, maxLength = 120) => {
       </div>
     </div>
 
-    <!-- 医生回复弹窗 -->
     <div v-if="showReplyModal" class="modal-overlay" @click="closeModal">
       <div class="reply-modal" @click.stop>
         <div class="modal-header">
           <h2>专业回复</h2>
           <button class="close-btn" @click="closeModal">×</button>
         </div>
-        
+
         <div v-if="selectedPost" class="modal-content">
           <div class="post-summary">
             <h4>{{ selectedPost.title }}</h4>
             <p class="post-excerpt">{{ truncateContent(selectedPost.content, 200) }}</p>
           </div>
-          
+
           <form @submit.prevent="submitDoctorReply" class="reply-form">
             <div class="form-group">
               <label>回复内容 *</label>
-              <textarea 
+              <textarea
                 v-model="doctorReply.content"
-                rows="8" 
+                rows="8"
                 placeholder="请提供专业的医疗建议和支持..."
                 required
               ></textarea>
             </div>
-            
+
             <div class="form-group">
               <label class="checkbox-label">
-                <input 
-                  type="checkbox" 
-                  v-model="doctorReply.isOfficial"
-                >
+                <input type="checkbox" v-model="doctorReply.isOfficial" />
                 <span>标记为官方回复</span>
               </label>
             </div>
-            
+
             <div class="reply-tips">
               <h5>专业回复指导：</h5>
               <ul>
-                <li>基于专业知识提供建议，避免诊断性表述</li>
-                <li>语言温和友善，给予家长情感支持</li>
+                <li>基于专业知识提供建议，避免做确诊性表述</li>
+                <li>语言温和友善，给予家长情绪支持</li>
                 <li>必要时建议家长就医或寻求专业评估</li>
-                <li>尊重家长的选择和困难</li>
+                <li>尊重家长的选择和实际困难</li>
               </ul>
             </div>
-            
+
             <div class="form-actions">
-              <button type="button" class="cancel-btn" @click="closeModal">
-                取消
-              </button>
-              <button type="submit" class="submit-btn">
-                发布回复
-              </button>
+              <button type="button" class="cancel-btn" @click="closeModal">取消</button>
+              <button type="submit" class="submit-btn">发布回复</button>
             </div>
           </form>
         </div>
@@ -807,7 +608,7 @@ const truncateContent = (content: string, maxLength = 120) => {
   padding: 2rem;
 }
 
-/* 页面头部 */
+/* 椤甸潰澶撮儴 */
 .page-header {
   text-align: center;
   margin-bottom: 2rem;
@@ -824,7 +625,7 @@ const truncateContent = (content: string, maxLength = 120) => {
   font-size: 1.1rem;
 }
 
-/* 医生信息卡片 */
+/* 鍖荤敓淇℃伅鍗＄墖 */
 .doctor-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 12px;
@@ -862,7 +663,7 @@ const truncateContent = (content: string, maxLength = 120) => {
   opacity: 0.9;
 }
 
-/* 统计信息 */
+/* 缁熻淇℃伅 */
 .statistics-bar {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -908,7 +709,7 @@ const truncateContent = (content: string, maxLength = 120) => {
   font-size: 0.9rem;
 }
 
-/* 筛选区域 */
+/* 绛涢€夊尯鍩?*/
 .filters-section {
   background: white;
   padding: 1.5rem;
@@ -958,7 +759,7 @@ const truncateContent = (content: string, maxLength = 120) => {
   cursor: pointer;
 }
 
-/* 帖子列表 */
+/* 甯栧瓙鍒楄〃 */
 .posts-list {
   display: flex;
   flex-direction: column;
@@ -1190,7 +991,7 @@ const truncateContent = (content: string, maxLength = 120) => {
   color: #666;
 }
 
-/* 弹窗样式 */
+/* 寮圭獥鏍峰紡 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1250,7 +1051,7 @@ const truncateContent = (content: string, maxLength = 120) => {
   padding: 1.5rem;
 }
 
-/* 帖子详情样式 */
+/* 甯栧瓙璇︽儏鏍峰紡 */
 .post-detail-header {
   display: flex;
   gap: 1rem;
@@ -1319,7 +1120,7 @@ const truncateContent = (content: string, maxLength = 120) => {
   border-bottom: 1px solid #f0f0f0;
 }
 
-/* 回复区域 */
+/* 鍥炲鍖哄煙 */
 .replies-section h3 {
   color: #2c3e50;
   margin-bottom: 1rem;
@@ -1411,7 +1212,7 @@ const truncateContent = (content: string, maxLength = 120) => {
   border-top: 1px solid #e0e0e0;
 }
 
-/* 回复表单 */
+/* 鍥炲琛ㄥ崟 */
 .post-summary {
   background: #f8f9fa;
   padding: 1rem;
@@ -1529,75 +1330,79 @@ const truncateContent = (content: string, maxLength = 120) => {
   background: #369870;
 }
 
-/* 响应式设计 */
+/* 鍝嶅簲寮忚璁?*/
 @media (max-width: 768px) {
   .forum-management-container {
     padding: 1rem;
   }
-  
+
   .page-header h1 {
     font-size: 2rem;
   }
-  
+
   .statistics-bar {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
-  
+
   .doctor-info {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .filters-row {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .search-group {
     min-width: auto;
   }
-  
+
   .filter-group {
     justify-content: space-between;
     flex-wrap: wrap;
   }
-  
+
   .post-header {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .post-meta {
     flex-wrap: wrap;
   }
-  
+
   .author-info {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .post-actions {
     flex-direction: column;
   }
-  
+
   .post-detail-header {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .author-section {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .reply-header {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .form-actions {
     flex-direction: column;
   }
 }
 </style>
+
+
+
+

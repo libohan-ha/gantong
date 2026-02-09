@@ -1,28 +1,42 @@
-<template>
+﻿<template>
   <div class="doctor-profile-container">
-    <!-- 页面头部 -->
     <div class="page-header">
       <h1>医生资料</h1>
-      <p class="header-desc">完善您的个人资料，提升专业形象</p>
+      <p class="header-desc">完善个人资料，提升专业形象</p>
     </div>
 
-    <!-- 资料卡片 -->
     <div class="profile-card" v-loading="loading">
       <div class="card-header">
         <div class="avatar-section">
           <div class="avatar">
-            {{ doctorProfile?.name?.charAt(0) || '医' }}
+            <img
+              v-if="doctorProfile?.avatarUrl"
+              :src="resolveAvatarUrl(doctorProfile.avatarUrl)"
+              alt="doctor-avatar"
+            />
+            <span v-else>{{ doctorProfile?.name?.charAt(0) || '医' }}</span>
           </div>
+
+          <input
+            ref="avatarInputRef"
+            class="avatar-input"
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            @change="handleAvatarChange"
+          />
+
           <div class="upload-avatar">
-            <el-button size="small" type="text">更换头像</el-button>
+            <el-button size="small" text :loading="avatarUploading" @click="triggerAvatarUpload">
+              更换头像
+            </el-button>
           </div>
         </div>
+
         <div class="status-badge" :class="{ verified: doctorProfile?.verified }">
           {{ doctorProfile?.verified ? '已认证' : '未认证' }}
         </div>
       </div>
 
-      <!-- 编辑表单 -->
       <el-form
         ref="profileFormRef"
         :model="profileForm"
@@ -32,17 +46,17 @@
       >
         <div class="form-section">
           <h3>基本信息</h3>
-          
+
           <div class="form-row">
             <el-form-item label="姓名" prop="name" class="form-item">
               <el-input v-model="profileForm.name" placeholder="请输入真实姓名" />
             </el-form-item>
-            
+
             <el-form-item label="年龄" prop="age" class="form-item">
-              <el-input-number 
-                v-model="profileForm.age" 
-                :min="18" 
-                :max="100" 
+              <el-input-number
+                v-model="profileForm.age"
+                :min="18"
+                :max="100"
                 placeholder="年龄"
                 style="width: 100%"
               />
@@ -62,7 +76,7 @@
                 <el-option label="护师" value="护师" />
               </el-select>
             </el-form-item>
-            
+
             <el-form-item label="联系方式" prop="phone" class="form-item">
               <el-input v-model="profileForm.phone" placeholder="手机号码" />
             </el-form-item>
@@ -73,17 +87,13 @@
           </el-form-item>
         </div>
 
-        <!-- 操作按钮 -->
         <div class="form-actions">
           <el-button @click="resetForm">重置</el-button>
-          <el-button type="primary" @click="saveProfile" :loading="saving">
-            保存资料
-          </el-button>
+          <el-button type="primary" @click="saveProfile" :loading="saving">保存资料</el-button>
         </div>
       </el-form>
     </div>
 
-    <!-- 统计信息 -->
     <div class="stats-section">
       <h3>我的统计</h3>
       <div class="stats-grid">
@@ -109,62 +119,79 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { getMyProfile, updateMyProfile, getMyStats, type DoctorProfile, type DoctorStats } from '@/services/doctor'
+import { API_BASE_URL } from '@/services/api'
+import {
+  getMyProfile,
+  getMyStats,
+  updateMyProfile,
+  uploadAvatar,
+  type DoctorProfile,
+  type DoctorStats,
+  type UpdateDoctorProfileRequest,
+} from '@/services/doctor'
 
-// 响应式数据
 const profileFormRef = ref<FormInstance>()
+const avatarInputRef = ref<HTMLInputElement>()
+
 const saving = ref(false)
+const avatarUploading = ref(false)
 const loading = ref(false)
+
 const doctorProfile = ref<DoctorProfile | null>(null)
 const stats = ref<DoctorStats | null>(null)
 
-// 表单数据
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string
+    }
+  }
+}
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  const message = (error as ApiError)?.response?.data?.message
+  return typeof message === 'string' && message.trim() ? message : fallback
+}
+
 const profileForm = reactive({
   name: '',
   age: undefined as number | undefined,
   title: '',
   phone: '',
-  hospital: ''
+  hospital: '',
 })
 
-// 表单验证规则
 const profileRules: FormRules = {
   name: [
     { required: true, message: '请输入姓名', trigger: 'blur' },
-    { min: 2, max: 20, message: '姓名长度在 2 到 20 个字符', trigger: 'blur' }
+    { min: 2, max: 20, message: '姓名长度应为 2-20 个字符', trigger: 'blur' },
   ],
   age: [
     { required: true, message: '请输入年龄', trigger: 'blur' },
-    { type: 'number', min: 18, max: 100, message: '年龄必须在 18 到 100 之间', trigger: 'blur' }
+    { type: 'number', min: 18, max: 100, message: '年龄必须在 18-100 之间', trigger: 'blur' },
   ],
-  title: [
-    { required: true, message: '请选择职称', trigger: 'change' }
-  ],
-  phone: [
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
-  ],
+  title: [{ required: true, message: '请选择职称', trigger: 'change' }],
+  phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }],
   hospital: [
     { required: true, message: '请输入工作医院', trigger: 'blur' },
-    { min: 2, max: 50, message: '医院名称长度在 2 到 50 个字符', trigger: 'blur' }
-  ]
+    { min: 2, max: 50, message: '医院名称长度应为 2-50 个字符', trigger: 'blur' },
+  ],
 }
 
-// 加载医生资料
 const loadProfile = async () => {
   try {
     loading.value = true
     const profile = await getMyProfile()
     doctorProfile.value = profile
 
-    // 填充表单
     Object.assign(profileForm, {
       name: profile.name || '',
       age: profile.age,
       title: profile.title || '',
       phone: profile.phone || '',
-      hospital: profile.hospital || ''
+      hospital: profile.hospital || '',
     })
   } catch (error) {
     console.error('加载资料失败:', error)
@@ -174,45 +201,81 @@ const loadProfile = async () => {
   }
 }
 
-// 加载统计信息
+const calculateProfileCompleteness = (): number => {
+  if (!doctorProfile.value) return 0
+
+  const fields: Array<keyof DoctorProfile> = ['name', 'age', 'title', 'phone', 'hospital']
+  const filledCount = fields.filter((field) => {
+    const value = doctorProfile.value?.[field]
+    return value !== null && value !== undefined && value !== ''
+  }).length
+
+  return Math.round((filledCount / fields.length) * 100)
+}
+
 const loadStats = async () => {
   try {
-    // TODO: 后端实现后启用
-    // const statsData = await getMyStats()
-    // stats.value = statsData
-
-    // 临时使用默认值
-    stats.value = {
-      videoCount: 0,
-      totalViews: 0,
-      totalLikes: 0,
-      profileCompleteness: calculateProfileCompleteness()
-    }
+    stats.value = await getMyStats()
   } catch (error) {
     console.error('加载统计失败:', error)
     stats.value = {
       videoCount: 0,
       totalViews: 0,
       totalLikes: 0,
-      profileCompleteness: 0
+      profileCompleteness: calculateProfileCompleteness(),
     }
   }
 }
 
-// 计算资料完整度
-const calculateProfileCompleteness = (): number => {
-  if (!doctorProfile.value) return 0
+const resolveAvatarUrl = (avatarUrl?: string): string => {
+  if (!avatarUrl) return ''
+  if (/^https?:\/\//i.test(avatarUrl)) return avatarUrl
 
-  const fields = ['name', 'age', 'title', 'phone', 'hospital']
-  const filledFields = fields.filter(field => {
-    const value = doctorProfile.value![field as keyof DoctorProfile]
-    return value !== null && value !== undefined && value !== ''
-  })
-
-  return Math.round((filledFields.length / fields.length) * 100)
+  const base = API_BASE_URL.replace(/\/$/, '')
+  const normalizedPath = avatarUrl.startsWith('/') ? avatarUrl : `/${avatarUrl}`
+  return `${base}${normalizedPath}`
 }
 
-// 保存资料
+const triggerAvatarUpload = () => {
+  avatarInputRef.value?.click()
+}
+
+const handleAvatarChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请选择图片文件')
+    input.value = ''
+    return
+  }
+
+  const maxSize = 2 * 1024 * 1024
+  if (file.size > maxSize) {
+    ElMessage.error('头像文件不能超过 2MB')
+    input.value = ''
+    return
+  }
+
+  try {
+    avatarUploading.value = true
+    const { avatarUrl } = await uploadAvatar(file)
+
+    if (doctorProfile.value) {
+      doctorProfile.value.avatarUrl = avatarUrl
+    }
+
+    ElMessage.success('头像上传成功')
+  } catch (error) {
+    console.error('头像上传失败:', error)
+    ElMessage.error(getErrorMessage(error, '头像上传失败，请重试'))
+  } finally {
+    avatarUploading.value = false
+    input.value = ''
+  }
+}
+
 const saveProfile = async () => {
   if (!profileFormRef.value) return
 
@@ -222,58 +285,48 @@ const saveProfile = async () => {
 
     saving.value = true
 
-    // 构造请求体：可选字段为空时不提交，避免后端校验因空字符串失败
-    const payload: any = {
+    const payload: UpdateDoctorProfileRequest = {
       name: profileForm.name,
       age: profileForm.age,
       title: profileForm.title,
       hospital: profileForm.hospital,
     }
+
     if (profileForm.phone && profileForm.phone.trim()) {
       payload.phone = profileForm.phone.trim()
     }
 
-    // 调用后端API保存资料
     const updated = await updateMyProfile(payload)
-
-    // 更新本地数据
     doctorProfile.value = updated
 
     ElMessage.success('资料保存成功')
 
-    // 重新计算资料完整度
     if (stats.value) {
       stats.value.profileCompleteness = calculateProfileCompleteness()
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('保存失败:', error)
-    const message = error.response?.data?.message || '保存失败，请重试'
-    ElMessage.error(message)
+    ElMessage.error(getErrorMessage(error, '保存失败，请重试'))
   } finally {
     saving.value = false
   }
 }
 
-// 重置表单
 const resetForm = () => {
   if (doctorProfile.value) {
     Object.assign(profileForm, {
-      name: doctorProfile.value.name,
+      name: doctorProfile.value.name || '',
       age: doctorProfile.value.age,
-      title: doctorProfile.value.title,
-      phone: doctorProfile.value.phone,
-      hospital: doctorProfile.value.hospital
+      title: doctorProfile.value.title || '',
+      phone: doctorProfile.value.phone || '',
+      hospital: doctorProfile.value.hospital || '',
     })
   }
   profileFormRef.value?.clearValidate()
 }
 
-// 生命周期
 onMounted(async () => {
-  await Promise.all([
-    loadProfile(),
-    loadStats()
-  ])
+  await Promise.all([loadProfile(), loadStats()])
 })
 </script>
 
@@ -284,7 +337,6 @@ onMounted(async () => {
   padding: 2rem;
 }
 
-/* 页面头部 */
 .page-header {
   text-align: center;
   margin-bottom: 2rem;
@@ -301,9 +353,8 @@ onMounted(async () => {
   font-size: 1rem;
 }
 
-/* 资料卡片 */
 .profile-card {
-  background: white;
+  background: #fff;
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   padding: 2rem;
@@ -329,13 +380,24 @@ onMounted(async () => {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f8df5 0%, #2f6de0 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #fff;
   font-size: 2rem;
   font-weight: bold;
+  overflow: hidden;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-input {
+  display: none;
 }
 
 .upload-avatar {
@@ -358,7 +420,6 @@ onMounted(async () => {
   color: #52c41a;
 }
 
-/* 表单样式 */
 .profile-form {
   margin-top: 1rem;
 }
@@ -389,9 +450,8 @@ onMounted(async () => {
   border-top: 1px solid #eee;
 }
 
-/* 统计信息 */
 .stats-section {
-  background: white;
+  background: #fff;
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   padding: 2rem;
@@ -419,7 +479,7 @@ onMounted(async () => {
 .stat-number {
   font-size: 2rem;
   font-weight: bold;
-  color: #667eea;
+  color: #2f6de0;
   margin-bottom: 0.5rem;
 }
 
@@ -428,22 +488,21 @@ onMounted(async () => {
   font-size: 0.9rem;
 }
 
-/* 响应式 */
 @media (max-width: 768px) {
   .doctor-profile-container {
     padding: 1rem;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .card-header {
     flex-direction: column;
     gap: 1rem;
     text-align: center;
   }
-  
+
   .form-actions {
     flex-direction: column;
   }

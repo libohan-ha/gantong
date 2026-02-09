@@ -1,14 +1,20 @@
-<script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { listChildren, getProfile, upsertProfile, listHealthRecords, createHealthRecord, updateHealthRecord, deleteHealthRecord, createChild, deleteChild, type ChildItem, type ProfileResponse } from '@/services/growth'
+﻿<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import {
+  createChild,
+  createHealthRecord,
+  deleteHealthRecord,
+  getProfile,
+  listChildren,
+  listHealthRecords,
+  updateHealthRecord,
+  upsertProfile,
+  type ChildItem,
+  type HealthRecord,
+} from '@/services/growth'
 
-interface Child {
-  id: number
-  name: string
-  gender: string
-  birthDate: string
-  avatar?: string | null
-}
+type Gender = '男' | '女' | '未知'
 
 interface GrowthMilestone {
   age: string
@@ -16,22 +22,6 @@ interface GrowthMilestone {
   achieved: boolean
   achievedDate?: string
   notes?: string
-}
-
-
-interface AssessmentResult {
-  id: number
-  testName: string
-  date: string
-  totalScore: number
-  maxScore: number
-  level: string
-  sectionScores: {
-    section: string
-    score: number
-    maxScore: number
-  }[]
-  recommendations: string[]
 }
 
 interface CurrentStatus {
@@ -53,126 +43,99 @@ interface CurrentStatus {
   }
 }
 
-// 选择的孩子
-const child = ref<Child | null>(null)
-const children = ref<ChildItem[]>([])
-const selectedChildId = ref<number | null>(null)
-// 创建孩子相关状态
-const creatingChild = ref(false)
-const newChild = ref<{ name: string; gender: '男' | '女' | '未知'; birthDate: string }>({
-  name: '',
-  gender: '未知',
-  birthDate: ''
-})
-async function onCreateChild() {
-  if (!newChild.value.name || !newChild.value.birthDate) {
-    alert('请填写姓名和出生日期')
-    return
-  }
-  const created = await createChild({
-    name: newChild.value.name.trim(),
-    gender: newChild.value.gender,
-    birthDate: newChild.value.birthDate,
-  })
-  children.value.push(created)
-  selectedChildId.value = created.id
-  creatingChild.value = false
-  newChild.value = { name: '', gender: '未知', birthDate: '' }
-  await loadSelectedChild()
-}
-
-// 生长发育里程碑
-const growthMilestones = ref<GrowthMilestone[]>([
-  {
-    age: '0-3个月',
-    milestone: '抬头、微笑、注视物体',
-    achieved: true,
-    achievedDate: '2019-05-20',
-    notes: '发育正常，反应敏捷'
-  },
-  {
-    age: '4-6个月',
-    milestone: '翻身、坐立、抓握物品',
-    achieved: true,
-    achievedDate: '2019-08-10',
-    notes: '坐立较早，平衡感良好'
-  },
-  {
-    age: '7-12个月',
-    milestone: '爬行、站立、说简单词汇',
-    achieved: true,
-    achievedDate: '2020-01-15',
-    notes: '语言发育略慢，运动发育正常'
-  },
-  {
-    age: '1-2岁',
-    milestone: '独立行走、简单交流、控制大小便',
-    achieved: true,
-    achievedDate: '2020-10-30',
-    notes: '行走稳定，但社交意愿不强'
-  },
-  {
-    age: '2-3岁',
-    milestone: '跑跳、简单句子、独立游戏',
-    achieved: true,
-    achievedDate: '2021-12-20',
-    notes: '运动协调性有待提高'
-  },
-  {
-    age: '3-4岁',
-    milestone: '骑三轮车、完整表达、与人合作',
-    achieved: true,
-    achievedDate: '2023-02-10',
-    notes: '表达能力提升，但专注力不足'
-  },
-  {
-    age: '4-5岁',
-    milestone: '单脚跳跃、绘画涂色、遵守规则',
-    achieved: false,
-    notes: '平衡能力需要加强训练'
-  },
-  {
-    age: '5-6岁',
-    milestone: '骑自行车、书写字母、团队游戏',
-    achieved: false,
-    notes: '即将开始相关训练'
-  }
-])
-
-// 健康记录（从后端加载）
-import type { HealthRecord } from '@/services/growth'
-const healthRecords = ref<HealthRecord[]>([])
-
-// 当前状况（从后端加载）
-const currentStatus = ref<CurrentStatus>({
-  physicalDevelopment: { height: null as any, weight: null as any, lastUpdated: '' },
+const emptyStatus = (): CurrentStatus => ({
+  physicalDevelopment: { height: null, weight: null, lastUpdated: null },
   behaviorObservation: { strengths: [], challenges: [], improvements: [] },
   dailySkills: { selfCare: 0, communication: 0, social: 0, motor: 0 },
 })
 
-// 行为观察编辑用的临时文本（逗号/空格分隔）
+const child = ref<ChildItem | null>(null)
+const children = ref<ChildItem[]>([])
+const selectedChildId = ref<number | null>(null)
+const creatingChild = ref(false)
+
+const newChild = ref<{ name: string; gender: Gender; birthDate: string }>({
+  name: '',
+  gender: '未知',
+  birthDate: '',
+})
+
+const growthMilestones = ref<GrowthMilestone[]>([
+  {
+    age: '0-3个月',
+    milestone: '可抬头、会微笑、能追视物体',
+    achieved: true,
+    achievedDate: '2019-05-20',
+    notes: '发育正常',
+  },
+  {
+    age: '4-6个月',
+    milestone: '会翻身、可扶坐、主动抓握玩具',
+    achieved: true,
+    achievedDate: '2019-08-10',
+    notes: '平衡能力较好',
+  },
+  {
+    age: '7-12个月',
+    milestone: '会爬行、可站立、发出简单音节',
+    achieved: true,
+    achievedDate: '2020-01-15',
+    notes: '语言能力稳步提升',
+  },
+  {
+    age: '1-2岁',
+    milestone: '可独立行走并开始简单表达',
+    achieved: true,
+    achievedDate: '2020-10-30',
+    notes: '大运动发育稳定',
+  },
+  {
+    age: '2-3岁',
+    milestone: '会跑跳并进行简单独立游戏',
+    achieved: true,
+    achievedDate: '2021-12-20',
+    notes: '仍需持续协调训练',
+  },
+  {
+    age: '3-4岁',
+    milestone: '可骑三轮车并表达完整句子',
+    achieved: true,
+    achievedDate: '2023-02-10',
+    notes: '注意力仍需支持',
+  },
+  {
+    age: '4-5岁',
+    milestone: '可单脚跳并遵守活动规则',
+    achieved: false,
+    notes: '继续进行平衡专项练习',
+  },
+  {
+    age: '5-6岁',
+    milestone: '可骑自行车并进行早期书写练习',
+    achieved: false,
+    notes: '纳入下一阶段训练计划',
+  },
+])
+
+const healthRecords = ref<HealthRecord[]>([])
+const currentStatus = ref<CurrentStatus>(emptyStatus())
 const strengthsText = ref('')
 const challengesText = ref('')
 const improvementsText = ref('')
-
-// 评估结果已隐藏，不加载
-
-// 页面状态
 const activeTab = ref('overview')
 const editMode = ref(false)
+const saving = ref(false)
 
-// 计算年龄
 const calculateAge = (birthDate: string) => {
   if (!birthDate) return ''
   const birth = new Date(birthDate)
   const now = new Date()
   const ageInMs = now.getTime() - birth.getTime()
-  const ageInYears = Math.floor(ageInMs / (1000 * 60 * 60 * 24 * 365.25))
-  const ageInMonths = Math.floor((ageInMs % (1000 * 60 * 60 * 24 * 365.25)) / (1000 * 60 * 60 * 24 * 30.44))
-  return `${ageInYears}岁${ageInMonths}个月`
+  const years = Math.floor(ageInMs / (1000 * 60 * 60 * 24 * 365.25))
+  const months = Math.floor((ageInMs % (1000 * 60 * 60 * 24 * 365.25)) / (1000 * 60 * 60 * 24 * 30.44))
+  return `${years}岁${months}个月`
 }
 
-// 获取技能等级描述
 const getSkillLevel = (score: number) => {
   if (score >= 90) return { text: '优秀', color: '#4caf50' }
   if (score >= 75) return { text: '良好', color: '#8bc34a' }
@@ -180,49 +143,53 @@ const getSkillLevel = (score: number) => {
   return { text: '需提升', color: '#f44336' }
 }
 
-// 获取评估等级颜色
-const getAssessmentLevelColor = (level: string) => {
-  switch (level) {
-    case '优秀':
-    case '良好':
-      return '#4caf50'
-    case '中等':
-      return '#ff9800'
-    case '需要关注':
-      return '#f44336'
-    default:
-      return '#666'
-  }
-}
-
-// 切换编辑模式
 const toggleEditMode = () => {
   editMode.value = !editMode.value
   if (editMode.value) {
-    // 进入编辑时，初始化可编辑输入的文本
-    strengthsText.value = currentStatus.value.behaviorObservation.strengths.join('、')
-    challengesText.value = currentStatus.value.behaviorObservation.challenges.join('、')
-    improvementsText.value = currentStatus.value.behaviorObservation.improvements.join('、')
+    strengthsText.value = currentStatus.value.behaviorObservation.strengths.join(', ')
+    challengesText.value = currentStatus.value.behaviorObservation.challenges.join(', ')
+    improvementsText.value = currentStatus.value.behaviorObservation.improvements.join(', ')
   }
 }
 
-// 保存更改（已接后端）
-const saving = ref(false)
-async function saveChanges() {
-  if (saving.value) return
-  if (!selectedChildId.value) {
-    alert('请先选择孩子后再保存')
+async function onCreateChild() {
+  if (!newChild.value.name || !newChild.value.birthDate) {
+    ElMessage.warning('请填写孩子姓名和出生日期')
     return
   }
   try {
+    const created = await createChild({
+      name: newChild.value.name.trim(),
+      gender: newChild.value.gender,
+      birthDate: newChild.value.birthDate,
+    })
+    children.value.push(created)
+    selectedChildId.value = created.id
+    creatingChild.value = false
+    newChild.value = { name: '', gender: '未知', birthDate: '' }
+    await loadSelectedChild()
+    ElMessage.success('创建孩子成功')
+  } catch (error) {
+    console.error('创建孩子失败', error)
+    ElMessage.error('创建孩子失败，请重试')
+  }
+}
+
+async function saveChanges() {
+  if (saving.value) return
+  if (!selectedChildId.value) {
+    ElMessage.warning('请先选择孩子')
+    return
+  }
+
+  try {
     saving.value = true
-    const rawDate = (currentStatus.value.physicalDevelopment.lastUpdated as any) || ''
-    const normalizedDate = typeof rawDate === 'string'
-      ? rawDate.replaceAll('/', '-').slice(0, 10)
-      : ''
+    const rawDate = currentStatus.value.physicalDevelopment.lastUpdated || ''
+    const normalizedDate = typeof rawDate === 'string' ? rawDate.split('/').join('-').slice(0, 10) : ''
+
     const payload = {
-      heightCm: (currentStatus.value.physicalDevelopment.height as any) ?? undefined,
-      weightKg: (currentStatus.value.physicalDevelopment.weight as any) ?? undefined,
+      heightCm: currentStatus.value.physicalDevelopment.height ?? undefined,
+      weightKg: currentStatus.value.physicalDevelopment.weight ?? undefined,
       lastPhysicalUpdated: normalizedDate || undefined,
       behaviorStrengths: strengthsText.value.split(/[,，、\s]+/).filter(Boolean),
       behaviorChallenges: challengesText.value.split(/[,，、\s]+/).filter(Boolean),
@@ -232,70 +199,56 @@ async function saveChanges() {
       dailySocial: currentStatus.value.dailySkills.social,
       dailyMotor: currentStatus.value.dailySkills.motor,
     }
-    const childId = Number(selectedChildId.value)
-    await upsertProfile(childId, payload)
-    // 同步到本地显示
+
+    await upsertProfile(selectedChildId.value, payload)
     currentStatus.value.behaviorObservation.strengths = payload.behaviorStrengths
     currentStatus.value.behaviorObservation.challenges = payload.behaviorChallenges
     currentStatus.value.behaviorObservation.improvements = payload.behaviorImprovements
     editMode.value = false
-    alert('保存成功！')
-  } catch (err) {
-    console.error('保存失败', err)
-    alert('保存失败，请稍后重试。')
+    ElMessage.success('保存成功')
+  } catch (error) {
+    console.error('保存失败', error)
+    ElMessage.error('保存失败，请重试')
   } finally {
     saving.value = false
   }
 }
 
-// 添加新的里程碑
 const addMilestone = () => {
   growthMilestones.value.push({
     age: '',
     milestone: '',
     achieved: false,
-    notes: ''
+    notes: '',
   })
 }
 
-
-// 初始化加载孩子与数据
-onMounted(async () => {
-  try {
-    const res = await listChildren()
-    children.value = res.items
-    if (children.value.length) {
-      selectedChildId.value = children.value[0].id
-      await loadSelectedChild()
-      const list = await listHealthRecords(selectedChildId.value)
-      healthRecords.value = list.items
-    }
-  } catch (e) {
-    console.error(e)
-  }
-})
-
 async function loadSelectedChild() {
   if (!selectedChildId.value) return
-  const prof = await getProfile(selectedChildId.value)
-  child.value = prof.child
-  currentStatus.value = prof.currentStatus as any
-  const list = await listHealthRecords(selectedChildId.value)
-  healthRecords.value = list.items
+  try {
+    const profile = await getProfile(selectedChildId.value)
+    child.value = profile.child
+    currentStatus.value = profile.currentStatus || emptyStatus()
+    const records = await listHealthRecords(selectedChildId.value)
+    healthRecords.value = records.items
+  } catch (error) {
+    console.error('加载孩子资料失败', error)
+    ElMessage.error('加载孩子资料失败')
+  }
 }
 
 async function addHealthRecord() {
   if (!selectedChildId.value) return
-  const newRec = await createHealthRecord(selectedChildId.value, {
+  const newRecord = await createHealthRecord(selectedChildId.value, {
     date: new Date().toISOString().split('T')[0],
     type: '体检',
     description: '',
     result: '',
   })
-  healthRecords.value.unshift(newRec)
+  healthRecords.value.unshift(newRecord)
 }
 
-async function onUpdateRecord(record: any) {
+async function onUpdateRecord(record: HealthRecord) {
   if (!record?.id) return
   await updateHealthRecord(record.id, {
     date: record.date,
@@ -305,19 +258,30 @@ async function onUpdateRecord(record: any) {
   })
 }
 
-async function onDeleteRecord(record: any) {
+async function onDeleteRecord(record: HealthRecord) {
   if (!record?.id) return
-  if (!confirm('确定删除该健康记录？')) return
+  if (!confirm('确认删除这条健康记录吗？')) return
   await deleteHealthRecord(record.id)
   healthRecords.value = healthRecords.value.filter((r) => r.id !== record.id)
 }
 
+onMounted(async () => {
+  try {
+    const res = await listChildren()
+    children.value = res.items
+    if (children.value.length > 0) {
+      selectedChildId.value = children.value[0].id
+      await loadSelectedChild()
+    }
+  } catch (error) {
+    console.error('加载孩子列表失败', error)
+    ElMessage.error('加载孩子列表失败')
+  }
+})
 </script>
-
 
 <template>
   <div class="growth-profile-container">
-    <!-- 页面头部 -->
     <div class="profile-header">
       <div class="child-info">
         <div class="child-avatar">
@@ -329,8 +293,11 @@ async function onDeleteRecord(record: any) {
             <select v-model="selectedChildId" @change="() => loadSelectedChild()">
               <option v-for="c in children" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
-            <button class="add-btn" type="button" @click="creatingChild = !creatingChild">{{ creatingChild ? '取消' : '新建' }}</button>
+            <button class="add-btn" type="button" @click="creatingChild = !creatingChild">
+              {{ creatingChild ? '取消' : '新建' }}
+            </button>
           </div>
+
           <div v-if="creatingChild" class="create-child-form">
             <input class="input" v-model="newChild.name" placeholder="孩子姓名" />
             <select class="input" v-model="newChild.gender">
@@ -341,7 +308,8 @@ async function onDeleteRecord(record: any) {
             <input class="input" type="date" v-model="newChild.birthDate" />
             <button class="save-btn" type="button" @click="onCreateChild">创建</button>
           </div>
-          <h1 v-if="child">{{ child.name }}的成长档案</h1>
+
+          <h1 v-if="child">{{ child.name }} 成长档案</h1>
           <div v-if="child" class="child-meta">
             <span class="meta-item">{{ child.gender }}</span>
             <span class="meta-item">{{ calculateAge(child.birthDate) }}</span>
@@ -351,13 +319,7 @@ async function onDeleteRecord(record: any) {
       </div>
 
       <div class="header-actions">
-        <button
-          v-if="!editMode"
-          class="edit-btn"
-          @click="toggleEditMode"
-        >
-          编辑档案
-        </button>
+        <button v-if="!editMode" class="edit-btn" @click="toggleEditMode">编辑档案</button>
         <template v-else>
           <button type="button" class="save-btn" @click="saveChanges">保存</button>
           <button class="cancel-btn" @click="editMode = false">取消</button>
@@ -365,64 +327,42 @@ async function onDeleteRecord(record: any) {
       </div>
     </div>
 
-    <!-- 导航标签 -->
     <div class="tab-navigation">
-      <button
-        class="tab-btn"
-        :class="{ active: activeTab === 'overview' }"
-        @click="activeTab = 'overview'"
-      >
-        总览
-      </button>
-      <button
-        class="tab-btn"
-        :class="{ active: activeTab === 'current' }"
-        @click="activeTab = 'current'"
-      >
-        当前状况
-      </button>
-      <button
-        class="tab-btn"
-        :class="{ active: activeTab === 'health' }"
-        @click="activeTab = 'health'"
-      >
-        健康记录
-      </button>
+      <button class="tab-btn" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">总览</button>
+      <button class="tab-btn" :class="{ active: activeTab === 'current' }" @click="activeTab = 'current'">当前状态</button>
+      <button class="tab-btn" :class="{ active: activeTab === 'development' }" @click="activeTab = 'development'">成长里程碑</button>
+      <button class="tab-btn" :class="{ active: activeTab === 'health' }" @click="activeTab = 'health'">健康记录</button>
     </div>
 
-
-    <!-- 总览页面 -->
     <div v-if="activeTab === 'overview'" class="tab-content">
       <div class="overview-grid">
-        <!-- 基本信息卡片 -->
         <div class="info-card">
           <h3>基本信息</h3>
           <div class="info-list">
             <div class="info-item">
-              <span class="label">身高</span>
+              <span class="label">身高(cm)</span>
               <template v-if="editMode">
-                <input class="input" type="number" v-model.number="(currentStatus.physicalDevelopment.height as any)" placeholder="例如 110" />
+                <input class="input" type="number" v-model.number="currentStatus.physicalDevelopment.height" placeholder="例如 110" />
               </template>
               <span v-else class="value">{{ currentStatus.physicalDevelopment.height }}</span>
             </div>
             <div class="info-item">
-              <span class="label">体重</span>
+              <span class="label">体重(kg)</span>
               <template v-if="editMode">
-                <input class="input" type="number" v-model.number="(currentStatus.physicalDevelopment.weight as any)" placeholder="例如 18" />
+                <input class="input" type="number" v-model.number="currentStatus.physicalDevelopment.weight" placeholder="例如 18" />
               </template>
               <span v-else class="value">{{ currentStatus.physicalDevelopment.weight }}</span>
             </div>
             <div class="info-item">
-              <span class="label">最近更新</span>
+              <span class="label">最后更新</span>
               <template v-if="editMode">
-                <input class="input" type="date" v-model="(currentStatus.physicalDevelopment.lastUpdated as any)" />
+                <input class="input" type="date" v-model="currentStatus.physicalDevelopment.lastUpdated" />
               </template>
               <span v-else class="value">{{ currentStatus.physicalDevelopment.lastUpdated }}</span>
             </div>
           </div>
         </div>
 
-        <!-- 能力雷达图 -->
         <div class="info-card">
           <h3>各项能力</h3>
           <div class="skills-overview">
@@ -452,20 +392,20 @@ async function onDeleteRecord(record: any) {
 
             <div class="skill-item">
               <div class="skill-info">
-              <div v-if="editMode" class="edit-form">
-                <div class="info-item">
-                  <span class="label">优势</span>
-                  <input class="input" type="text" v-model="strengthsText" placeholder="逗号或顿号分隔" />
+                <div v-if="editMode" class="edit-form">
+                  <div class="info-item">
+                    <span class="label">优势</span>
+                    <input class="input" type="text" v-model="strengthsText" placeholder="使用逗号分隔" />
+                  </div>
+                  <div class="info-item">
+                    <span class="label">挑战</span>
+                    <input class="input" type="text" v-model="challengesText" placeholder="使用逗号分隔" />
+                  </div>
+                  <div class="info-item">
+                    <span class="label">改善</span>
+                    <input class="input" type="text" v-model="improvementsText" placeholder="使用逗号分隔" />
+                  </div>
                 </div>
-                <div class="info-item">
-                  <span class="label">挑战</span>
-                  <input class="input" type="text" v-model="challengesText" placeholder="逗号或顿号分隔" />
-                </div>
-                <div class="info-item">
-                  <span class="label">改善</span>
-                  <input class="input" type="text" v-model="improvementsText" placeholder="逗号或顿号分隔" />
-                </div>
-              </div>
 
                 <span class="skill-name">社交能力</span>
                 <span class="skill-score" :style="{ color: getSkillLevel(currentStatus.dailySkills.social).color }">
@@ -491,8 +431,6 @@ async function onDeleteRecord(record: any) {
           </div>
         </div>
 
-
-        <!-- 近期表现 -->
         <div class="info-card">
           <h3>近期改善</h3>
           <div class="improvements-list">
@@ -508,12 +446,11 @@ async function onDeleteRecord(record: any) {
       </div>
     </div>
 
-    <!-- 生长发育史 -->
     <div v-if="activeTab === 'development'" class="tab-content">
       <div class="development-content">
         <div class="section-header">
-          <h3>发育里程碑</h3>
-          <button v-if="editMode" class="add-btn" @click="addMilestone">添加里程碑</button>
+          <h3>成长里程碑</h3>
+          <button v-if="editMode" class="add-btn" @click="addMilestone">新增里程碑</button>
         </div>
 
         <div class="milestones-timeline">
@@ -543,10 +480,8 @@ async function onDeleteRecord(record: any) {
       </div>
     </div>
 
-    <!-- 当前状况 -->
     <div v-if="activeTab === 'current'" class="tab-content">
       <div class="current-status-grid">
-        <!-- 行为观察 -->
         <div class="status-card">
           <h3>行为观察</h3>
 
@@ -577,7 +512,7 @@ async function onDeleteRecord(record: any) {
           </div>
 
           <div class="behavior-section">
-            <h4>改善方面</h4>
+            <h4>改善方向</h4>
             <div class="behavior-tags improvements">
               <span
                 v-for="improvement in currentStatus.behaviorObservation.improvements"
@@ -590,7 +525,6 @@ async function onDeleteRecord(record: any) {
           </div>
         </div>
 
-        <!-- 体格发育 -->
         <div class="status-card">
           <h3>体格发育</h3>
           <div class="physical-stats">
@@ -613,14 +547,11 @@ async function onDeleteRecord(record: any) {
             </div>
           </div>
 
-          <div class="update-info">
-            最后更新：{{ currentStatus.physicalDevelopment.lastUpdated }}
-          </div>
+          <div class="update-info">最后更新：{{ currentStatus.physicalDevelopment.lastUpdated }}</div>
         </div>
 
-        <!-- 日常技能 -->
         <div class="status-card full-width">
-          <h3>日常技能评估</h3>
+          <h3>日常能力评估</h3>
           <div class="skills-detailed">
             <div class="skill-detailed-item">
               <div class="skill-header">
@@ -630,9 +561,7 @@ async function onDeleteRecord(record: any) {
               <div class="skill-bar">
                 <div class="skill-fill" :style="{ width: currentStatus.dailySkills.selfCare + '%' }"></div>
               </div>
-              <div class="skill-description">
-                包括穿衣、洗漱、用餐等基本生活技能
-              </div>
+              <div class="skill-description">包括穿衣、洗漱、用餐等基本生活技能</div>
             </div>
 
             <div class="skill-detailed-item">
@@ -643,9 +572,7 @@ async function onDeleteRecord(record: any) {
               <div class="skill-bar">
                 <div class="skill-fill" :style="{ width: currentStatus.dailySkills.communication + '%' }"></div>
               </div>
-              <div class="skill-description">
-                语言表达、理解能力和非语言沟通技巧
-              </div>
+              <div class="skill-description">语言表达、理解能力和非语言沟通技巧</div>
             </div>
 
             <div class="skill-detailed-item">
@@ -656,9 +583,7 @@ async function onDeleteRecord(record: any) {
               <div class="skill-bar">
                 <div class="skill-fill" :style="{ width: currentStatus.dailySkills.social + '%' }"></div>
               </div>
-              <div class="skill-description">
-                与同龄人互动、合作游戏和情感表达
-              </div>
+              <div class="skill-description">与同龄人互动、合作游戏和情感表达</div>
             </div>
 
             <div class="skill-detailed-item">
@@ -669,21 +594,18 @@ async function onDeleteRecord(record: any) {
               <div class="skill-bar">
                 <div class="skill-fill" :style="{ width: currentStatus.dailySkills.motor + '%' }"></div>
               </div>
-              <div class="skill-description">
-                大运动和精细运动协调性和灵活性
-              </div>
+              <div class="skill-description">大运动与精细运动的协调性和灵活性</div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 健康记录 -->
     <div v-if="activeTab === 'health'" class="tab-content">
       <div class="health-records">
         <div class="section-header">
           <h3>健康记录</h3>
-          <button v-if="editMode" class="add-btn" @click="addHealthRecord">添加记录</button>
+          <button v-if="editMode" class="add-btn" @click="addHealthRecord">新增记录</button>
         </div>
 
         <div class="records-list">
@@ -716,7 +638,7 @@ async function onDeleteRecord(record: any) {
   padding: 2rem;
 }
 
-/* 页面头部 */
+/* 椤甸潰澶撮儴 */
 .profile-header {
   display: flex;
   justify-content: space-between;
@@ -809,7 +731,7 @@ async function onDeleteRecord(record: any) {
   background: #e0e0e0;
 }
 
-/* 标签导航 */
+/* 鏍囩瀵艰埅 */
 .tab-navigation {
   display: flex;
   gap: 0.5rem;
@@ -837,12 +759,12 @@ async function onDeleteRecord(record: any) {
   background: #e0e0e0;
 }
 
-/* 标签内容 */
+/* 鏍囩鍐呭 */
 .tab-content {
   min-height: 400px;
 }
 
-/* 总览网格 */
+/* 鎬昏缃戞牸 */
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -856,7 +778,7 @@ async function onDeleteRecord(record: any) {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* 简易编辑表单样式 */
+/* 绠€鏄撶紪杈戣〃鍗曟牱寮?*/
 .edit-form .info-item {
   margin-top: 8px;
 }
@@ -865,7 +787,7 @@ async function onDeleteRecord(record: any) {
   border: 1px solid #e0e0e0;
   border-radius: 6px;
 }
-/* 基本信息行内输入布局 */
+/* 鍩烘湰淇℃伅琛屽唴杈撳叆甯冨眬 */
 .info-item .input {
   flex: 1;
   margin-left: 8px;
@@ -898,7 +820,7 @@ async function onDeleteRecord(record: any) {
   color: #2c3e50;
 }
 
-/* 技能概览 */
+/* 鎶€鑳芥瑙?*/
 .skills-overview {
   display: flex;
   flex-direction: column;
@@ -980,7 +902,7 @@ async function onDeleteRecord(record: any) {
   background: rgba(66, 184, 131, 0.1);
 }
 
-/* 改善列表 */
+/* 鏀瑰杽鍒楄〃 */
 .improvements-list {
   display: flex;
   flex-direction: column;
@@ -998,7 +920,7 @@ async function onDeleteRecord(record: any) {
   margin: 2rem 0;
 }
 
-/* 发育里程碑 */
+/* 鍙戣偛閲岀▼纰?*/
 .development-content {
   background: white;
   padding: 2rem;
@@ -1112,7 +1034,7 @@ async function onDeleteRecord(record: any) {
   font-style: italic;
 }
 
-/* 当前状况 */
+/* 褰撳墠鐘跺喌 */
 .current-status-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -1135,7 +1057,7 @@ async function onDeleteRecord(record: any) {
   color: #2c3e50;
 }
 
-/* 行为观察 */
+/* 琛屼负瑙傚療 */
 .behavior-section {
   margin-bottom: 1.5rem;
 }
@@ -1174,7 +1096,7 @@ async function onDeleteRecord(record: any) {
   color: #2196f3;
 }
 
-/* 体格发育 */
+/* 浣撴牸鍙戣偛 */
 .physical-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
@@ -1216,7 +1138,7 @@ async function onDeleteRecord(record: any) {
   border-top: 1px solid #e0e0e0;
 }
 
-/* 详细技能 */
+/* 璇︾粏鎶€鑳?*/
 .skills-detailed {
   display: grid;
   gap: 1.5rem;
@@ -1246,7 +1168,7 @@ async function onDeleteRecord(record: any) {
   margin-top: 0.5rem;
 }
 
-/* 评估结果 */
+/* 璇勪及缁撴灉 */
 .assessments-list {
   display: flex;
   flex-direction: column;
@@ -1359,7 +1281,7 @@ async function onDeleteRecord(record: any) {
   line-height: 1.5;
 }
 
-/* 健康记录 */
+/* 鍋ュ悍璁板綍 */
 .health-records {
   background: white;
   padding: 2rem;
@@ -1409,7 +1331,7 @@ async function onDeleteRecord(record: any) {
   font-size: 0.9rem;
 }
 
-/* 响应式设计 */
+/* 鍝嶅簲寮忚璁?*/
 @media (max-width: 768px) {
   .growth-profile-container {
     padding: 1rem;
@@ -1467,3 +1389,6 @@ async function onDeleteRecord(record: any) {
   }
 }
 </style>
+
+
+
