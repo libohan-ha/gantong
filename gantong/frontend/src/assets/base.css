@@ -67,6 +67,12 @@ body {
     background-color 0.5s;
   line-height: 1.6;
   font-family:
+    'PingFang SC',
+    'Microsoft YaHei',
+    'Microsoft YaHei UI',
+    'Noto Sans SC',
+    'Source Han Sans SC',
+    'Helvetica Neue',
     Inter,
     -apple-system,
     BlinkMacSystemFont,

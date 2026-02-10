@@ -1,149 +1,144 @@
-<script setup lang="ts">
-import { ref, computed } from 'vue'
+<!--
+  门诊预约管理页面（医院端 / 管理员端）
 
+  功能概述：
+    1. 显示所有门诊预约列表，支持按状态、紧急程度、关键词筛选
+    2. 顶部统计卡片展示总预约数、待处理、已确认、紧急数量
+    3. 查看预约详情弹窗，展示患儿、家长、专家、症状、既往治疗等信息
+    4. 对待处理的预约执行「确认」或「拒绝」操作
+    5. 支持分页浏览
+
+  数据来源：
+    - 后端接口 GET  /admin/appointments  —— 获取预约列表
+    - 后端接口 PATCH /admin/appointments/:id —— 更新预约状态（确认/拒绝）
+
+  角色限制：SUPER_ADMIN / DOCTOR（由路由守卫控制）
+-->
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import api from '@/services/api'
+
+// ==================== 类型定义 ====================
+
+/**
+ * 预约记录（前端展示用）
+ * 在后端返回的 AppointmentApiItem 基础上做了字段映射和补充
+ */
 interface Appointment {
+  /** 预约ID */
   id: number
-  appointmentNo: string
+  /** 患儿姓名 */
+  childName: string
+  /** 患儿年龄 */
+  childAge: number
+  /** 患儿性别 */
+  childGender: string
+  /** 家长姓名 */
+  parentName: string
+  /** 家长联系电话 */
+  parentPhone: string
+  /** 期望就诊日期 */
+  preferredDate: string | null
+  /** 期望就诊时间段 */
+  preferredTime: string | null
+  /** 症状描述 */
+  symptoms: string | null
+  /** 既往治疗情况 */
+  previousTreatment: string | null
+  /** 预约的专家姓名（映射自 doctorName） */
+  expertName?: string
+  /** 专家所属医院（映射自 doctorHospital） */
+  expertHospital?: string
+  /** 预约状态：待处理 / 已确认 / 已拒绝 / 已完成 / 已取消 */
+  status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled'
+  /** 提交时间（映射自 createdAt） */
+  submitTime: string
+  /** 紧急程度：普通 / 紧急 / 特急（目前后端未返回，默认 normal） */
+  urgency: 'normal' | 'urgent' | 'emergency'
+  /** 备注信息（如拒绝原因） */
+  notes?: string | null
+}
+
+/**
+ * 后端返回的预约数据项（原始结构）
+ * 用于接收 API 响应后映射为前端 Appointment 类型
+ */
+interface AppointmentApiItem {
+  id: number
   childName: string
   childAge: number
   childGender: string
   parentName: string
   parentPhone: string
-  preferredDate: string
-  preferredTime: string
-  symptoms: string
-  previousTreatment: string
-  expertName: string
-  expertHospital: string
-  status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled'
-  submitTime: string
-  urgency: 'normal' | 'urgent' | 'emergency'
-  notes?: string
+  preferredDate: string | null
+  preferredTime: string | null
+  symptoms: string | null
+  previousTreatment: string | null
+  /** 医生姓名（后端当前可能未连表返回） */
+  doctorName?: string
+  /** 医生所属医院 */
+  doctorHospital?: string
+  status?: Appointment['status']
+  createdAt: string
+  notes?: string | null
 }
 
-// 模拟预约数据
-const appointments = ref<Appointment[]>([
-  {
-    id: 1,
-    appointmentNo: 'APT2024070801',
-    childName: '小明',
-    childAge: 5,
-    childGender: '男',
-    parentName: '张女士',
-    parentPhone: '138****5678',
-    preferredDate: '2024-07-15',
-    preferredTime: '周一上午',
-    symptoms: '孩子经常注意力不集中，容易分心，在学校坐不住，老师反映课堂表现不佳。运动协调性较差，骑自行车和跳绳都有困难。',
-    previousTreatment: '无相关治疗经历',
-    expertName: '张慧敏',
-    expertHospital: '北京儿童医院',
-    status: 'pending',
-    submitTime: '2024-07-08 09:30:00',
-    urgency: 'normal'
-  },
-  {
-    id: 2,
-    appointmentNo: 'APT2024070802',
-    childName: '小红',
-    childAge: 4,
-    childGender: '女',
-    parentName: '李先生',
-    parentPhone: '139****1234',
-    preferredDate: '2024-07-16',
-    preferredTime: '周二上午',
-    symptoms: '孩子对触觉非常敏感，不愿意穿毛衣，洗头时会哭闹不止，剪指甲也很困难。平衡感较差，走路容易摔倒。',
-    previousTreatment: '曾在当地医院做过简单检查，建议进行感统训练',
-    expertName: '李建华',
-    expertHospital: '上海市儿童医院',
-    status: 'confirmed',
-    submitTime: '2024-07-08 10:15:00',
-    urgency: 'urgent'
-  },
-  {
-    id: 3,
-    appointmentNo: 'APT2024070803',
-    childName: '小亮',
-    childAge: 6,
-    childGender: '男',
-    parentName: '王女士',
-    parentPhone: '137****9876',
-    preferredDate: '2024-07-17',
-    preferredTime: '周三下午',
-    symptoms: '孩子语言发育迟缓，6岁了还不能说完整的句子，与同龄人交流困难。同时存在多动问题，无法安静坐着。',
-    previousTreatment: '在康复中心接受过6个月语言训练，效果不明显',
-    expertName: '王芳',
-    expertHospital: '广州市妇女儿童医疗中心',
-    status: 'pending',
-    submitTime: '2024-07-08 11:45:00',
-    urgency: 'urgent'
-  },
-  {
-    id: 4,
-    appointmentNo: 'APT2024070804',
-    childName: '小娟',
-    childAge: 3,
-    childGender: '女',
-    parentName: '赵先生',
-    parentPhone: '135****4567',
-    preferredDate: '2024-07-18',
-    preferredTime: '周四上午',
-    symptoms: '孩子经常转圈不会头晕，喜欢剧烈的摇摆和旋转活动，但是精细动作发育落后，无法正确使用勺子吃饭。',
-    previousTreatment: '无',
-    expertName: '陈明',
-    expertHospital: '成都市儿童医院',
-    status: 'rejected',
-    submitTime: '2024-07-08 14:20:00',
-    urgency: 'normal',
-    notes: '专家时间冲突，建议改期'
-  },
-  {
-    id: 5,
-    appointmentNo: 'APT2024070805',
-    childName: '小强',
-    childAge: 7,
-    childGender: '男',
-    parentName: '陈女士',
-    parentPhone: '134****8901',
-    preferredDate: '2024-07-19',
-    preferredTime: '周五下午',
-    symptoms: '孩子在学校经常与同学发生冲突，情绪控制能力差，容易发脾气。运动技能正常，但社交能力明显落后。',
-    previousTreatment: '心理咨询3次，效果有限',
-    expertName: '刘秀英',
-    expertHospital: '西安市儿童医院',
-    status: 'completed',
-    submitTime: '2024-07-08 15:30:00',
-    urgency: 'normal'
-  },
-  {
-    id: 6,
-    appointmentNo: 'APT2024070806',
-    childName: '小美',
-    childAge: 4,
-    childGender: '女',
-    parentName: '周先生',
-    parentPhone: '133****2345',
-    preferredDate: '2024-07-20',
-    preferredTime: '周六上午',
-    symptoms: '孩子非常害怕新环境，去陌生地方会大哭大闹，适应能力极差。同时存在睡眠问题，经常夜醒。',
-    previousTreatment: '无',
-    expertName: '赵志强',
-    expertHospital: '深圳市儿童医院',
-    status: 'pending',
-    submitTime: '2024-07-08 16:45:00',
-    urgency: 'emergency'
-  }
-])
+// ==================== 数据加载 ====================
 
-// 页面状态
+/** 预约列表数据（从后端接口获取） */
+const appointments = ref<Appointment[]>([])
+
+/**
+ * 从后端加载预约列表
+ * 调用 GET /admin/appointments，将返回数据映射为前端 Appointment 格式
+ * 注意：后端当前未连表返回医生信息，expertName/expertHospital 可能为空
+ */
+const loadAppointments = async () => {
+  const res = await api.get('/admin/appointments', { params: { page: 1, pageSize: 50 } })
+  const items = ((res.data as { items?: AppointmentApiItem[] }).items || [])
+  appointments.value = items.map((it) => ({
+    id: it.id,
+    childName: it.childName,
+    childAge: it.childAge,
+    childGender: it.childGender,
+    parentName: it.parentName,
+    parentPhone: it.parentPhone,
+    preferredDate: it.preferredDate,
+    preferredTime: it.preferredTime,
+    symptoms: it.symptoms,
+    previousTreatment: it.previousTreatment,
+    expertName: it.doctorName || '',
+    expertHospital: it.doctorHospital || '',
+    status: (it.status || 'pending'),
+    submitTime: it.createdAt,
+    urgency: 'normal',       // 后端暂未返回紧急程度，默认普通
+    notes: it.notes || null
+  }))
+}
+
+/** 组件挂载时加载预约数据 */
+onMounted(loadAppointments)
+
+// ==================== 页面状态（筛选、分页、弹窗） ====================
+
+/** 当前选中的预约（用于详情弹窗） */
 const selectedAppointment = ref<Appointment | null>(null)
+/** 是否显示详情弹窗 */
 const showDetailModal = ref(false)
+/** 状态筛选条件 */
 const filterStatus = ref('all')
+/** 紧急程度筛选条件 */
 const filterUrgency = ref('all')
+/** 搜索关键词（匹配患儿姓名、家长姓名、专家姓名） */
 const searchKeyword = ref('')
+/** 当前页码 */
 const currentPage = ref(1)
+/** 每页显示条数 */
 const itemsPerPage = 10
 
-// 状态选项
+// ==================== 筛选选项配置 ====================
+
+/** 预约状态下拉选项 */
 const statusOptions = [
   { value: 'all', label: '全部状态' },
   { value: 'pending', label: '待处理' },
@@ -153,7 +148,7 @@ const statusOptions = [
   { value: 'cancelled', label: '已取消' }
 ]
 
-// 紧急程度选项
+/** 紧急程度下拉选项 */
 const urgencyOptions = [
   { value: 'all', label: '全部等级' },
   { value: 'normal', label: '普通' },
@@ -161,34 +156,44 @@ const urgencyOptions = [
   { value: 'emergency', label: '特急' }
 ]
 
-// 过滤后的预约列表
+// ==================== 计算属性 ====================
+
+/**
+ * 经过筛选后的预约列表
+ * 依次应用：状态筛选 → 紧急程度筛选 → 关键词搜索
+ */
 const filteredAppointments = computed(() => {
   return appointments.value.filter(appointment => {
     const statusMatch = filterStatus.value === 'all' || appointment.status === filterStatus.value
     const urgencyMatch = filterUrgency.value === 'all' || appointment.urgency === filterUrgency.value
-    const keywordMatch = searchKeyword.value === '' || 
+    const keywordMatch = searchKeyword.value === '' ||
       appointment.childName.includes(searchKeyword.value) ||
       appointment.parentName.includes(searchKeyword.value) ||
-      appointment.appointmentNo.includes(searchKeyword.value) ||
-      appointment.expertName.includes(searchKeyword.value)
-    
+      (appointment.expertName || '').includes(searchKeyword.value)
+
     return statusMatch && urgencyMatch && keywordMatch
   })
 })
 
-// 分页后的预约列表
+/** 当前页显示的预约列表（在筛选结果基础上分页） */
 const paginatedAppointments = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   const end = start + itemsPerPage
   return filteredAppointments.value.slice(start, end)
 })
 
-// 总页数
+/** 总页数 */
 const totalPages = computed(() => {
   return Math.ceil(filteredAppointments.value.length / itemsPerPage)
 })
 
-// 统计数据
+/**
+ * 统计数据
+ * - total: 总预约数
+ * - pending: 待处理数量
+ * - confirmed: 已确认数量
+ * - urgent: 紧急+特急数量
+ */
 const statistics = computed(() => {
   const total = appointments.value.length
   const pending = appointments.value.filter(a => a.status === 'pending').length
@@ -198,7 +203,13 @@ const statistics = computed(() => {
   return { total, pending, confirmed, urgent }
 })
 
-// 获取状态显示信息
+// ==================== 辅助函数 ====================
+
+/**
+ * 根据预约状态返回对应的显示文本、颜色和背景色
+ * @param status - 预约状态字符串
+ * @returns 包含 text、color、bgColor 的对象
+ */
 const getStatusInfo = (status: string) => {
   switch (status) {
     case 'pending':
@@ -216,7 +227,11 @@ const getStatusInfo = (status: string) => {
   }
 }
 
-// 获取紧急程度显示信息
+/**
+ * 根据紧急程度返回对应的显示文本和颜色
+ * @param urgency - 紧急程度字符串
+ * @returns 包含 text、color 的对象
+ */
 const getUrgencyInfo = (urgency: string) => {
   switch (urgency) {
     case 'normal':
@@ -230,40 +245,51 @@ const getUrgencyInfo = (urgency: string) => {
   }
 }
 
-// 查看预约详情
+// ==================== 事件处理函数 ====================
+
+/**
+ * 打开预约详情弹窗
+ * @param appointment - 要查看的预约记录
+ */
 const viewDetails = (appointment: Appointment) => {
   selectedAppointment.value = appointment
   showDetailModal.value = true
 }
 
-// 关闭详情弹窗
+/** 关闭详情弹窗并清空选中预约 */
 const closeDetailModal = () => {
   showDetailModal.value = false
   selectedAppointment.value = null
 }
 
-// 确认预约
-const confirmAppointment = (appointmentId: number) => {
-  const appointment = appointments.value.find(a => a.id === appointmentId)
-  if (appointment) {
-    appointment.status = 'confirmed'
-    alert('预约已确认，系统将通知家长')
-  }
+/**
+ * 确认预约
+ * 调用 PATCH /admin/appointments/:id 将状态改为 confirmed，然后刷新列表
+ * @param appointmentId - 预约ID
+ */
+const confirmAppointment = async (appointmentId: number) => {
+  await api.patch(`/admin/appointments/${appointmentId}`, { status: 'confirmed' })
+  await loadAppointments()
+  alert('预约已确认')
 }
 
-// 拒绝预约
-const rejectAppointment = (appointmentId: number, reason?: string) => {
-  const appointment = appointments.value.find(a => a.id === appointmentId)
-  if (appointment) {
-    appointment.status = 'rejected'
-    if (reason) {
-      appointment.notes = reason
-    }
-    alert('预约已拒绝，系统将通知家长')
-  }
+/**
+ * 拒绝预约
+ * 调用 PATCH /admin/appointments/:id 将状态改为 rejected，附带拒绝原因
+ * @param appointmentId - 预约ID
+ * @param reason - 拒绝原因（可选）
+ */
+const rejectAppointment = async (appointmentId: number, reason?: string) => {
+  await api.patch(`/admin/appointments/${appointmentId}`, { status: 'rejected', notes: reason || '' })
+  await loadAppointments()
+  alert('预约已拒绝')
 }
 
-// 处理预约（从详情页）
+/**
+ * 从详情弹窗中处理预约操作（确认或拒绝）
+ * 拒绝时会弹出 prompt 让用户输入原因
+ * @param action - 操作类型：'confirm' 确认 / 'reject' 拒绝
+ */
 const handleAppointmentFromDetail = (action: 'confirm' | 'reject') => {
   if (!selectedAppointment.value) return
   
@@ -279,7 +305,7 @@ const handleAppointmentFromDetail = (action: 'confirm' | 'reject') => {
   closeDetailModal()
 }
 
-// 重置筛选
+/** 重置所有筛选条件并回到第一页 */
 const resetFilters = () => {
   filterStatus.value = 'all'
   filterUrgency.value = 'all'
@@ -287,7 +313,11 @@ const resetFilters = () => {
   currentPage.value = 1
 }
 
-// 格式化时间
+/**
+ * 格式化日期时间为中文本地化字符串
+ * @param dateTime - ISO 日期时间字符串
+ * @returns 格式化后的中文日期时间
+ */
 const formatDateTime = (dateTime: string) => {
   return new Date(dateTime).toLocaleString('zh-CN')
 }
@@ -387,10 +417,10 @@ const formatDateTime = (dateTime: string) => {
           :class="{ urgent: appointment.urgency === 'urgent' || appointment.urgency === 'emergency' }"
         >
           <div class="table-cell">
-            <span class="appointment-no">{{ appointment.appointmentNo }}</span>
+            <span class="appointment-no">{{ appointment.id }}</span>
             <span class="submit-time">{{ formatDateTime(appointment.submitTime) }}</span>
           </div>
-          
+
           <div class="table-cell">
             <div class="child-info">
               <span class="child-name">{{ appointment.childName }}</span>
@@ -505,7 +535,7 @@ const formatDateTime = (dateTime: string) => {
             <div class="detail-grid">
               <div class="detail-item">
                 <span class="label">预约编号</span>
-                <span class="value">{{ selectedAppointment.appointmentNo }}</span>
+                <span class="value">{{ selectedAppointment.id }}</span>
               </div>
               <div class="detail-item">
                 <span class="label">提交时间</span>
@@ -513,7 +543,7 @@ const formatDateTime = (dateTime: string) => {
               </div>
               <div class="detail-item">
                 <span class="label">当前状态</span>
-                <span 
+                <span
                   class="value status"
                   :style="{ color: getStatusInfo(selectedAppointment.status).color }"
                 >
@@ -522,7 +552,7 @@ const formatDateTime = (dateTime: string) => {
               </div>
               <div class="detail-item">
                 <span class="label">紧急程度</span>
-                <span 
+                <span
                   class="value urgency"
                   :style="{ color: getUrgencyInfo(selectedAppointment.urgency).color }"
                 >

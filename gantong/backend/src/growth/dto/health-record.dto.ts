@@ -1,42 +1,47 @@
-import { IsDateString, IsInt, IsOptional, IsString, Length, MaxLength } from 'class-validator'
+import {
+  IsDateString,
+  IsOptional,
+  IsString,
+  Length,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateHealthRecordDto {
   @IsDateString()
-  date: string
+  date: string;
 
   @IsString()
   @Length(1, 50)
-  type: string
+  type: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(1000)
-  description?: string
+  description?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  result?: string
+  result?: string;
 }
 
 export class UpdateHealthRecordDto {
   @IsOptional()
   @IsDateString()
-  date?: string
+  date?: string;
 
   @IsOptional()
   @IsString()
   @Length(1, 50)
-  type?: string
+  type?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(1000)
-  description?: string
+  description?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  result?: string
+  result?: string;
 }
-

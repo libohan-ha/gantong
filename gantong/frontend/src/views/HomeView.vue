@@ -1,16 +1,14 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
 
-// 获取角色显示名称
 const getRoleDisplayName = (role: string | undefined) => {
   const roleMap: Record<string, string> = {
-    'SUPER_ADMIN': '超级管理员',
-    'HOSPITAL_ADMIN': '医院管理员',
-    'DOCTOR': '医生',
-    'PARENT': '家长',
-    'SCHOOL_ADMIN': '学校管理员'
+    SUPER_ADMIN: '超级管理员',
+    DOCTOR: '医生',
+    PARENT: '家长',
+    SCHOOL_ADMIN: '学校管理员',
   }
   return role ? roleMap[role] || role : '未知'
 }
@@ -19,7 +17,7 @@ const getRoleDisplayName = (role: string | undefined) => {
 <template>
   <main class="home-main">
     <div class="hero-section">
-      <h1>慧悦-学院</h1>
+      <h1>感统学院</h1>
       <p>专业的感统训练平台</p>
 
       <div v-if="!authStore.isAuthenticated" class="login-prompt">
@@ -28,11 +26,11 @@ const getRoleDisplayName = (role: string | undefined) => {
       </div>
 
       <div v-else class="welcome-message">
-        <p>欢迎回来，{{ authStore.user?.email || authStore.user?.phone }}！</p>
+        <p>欢迎回来，{{ authStore.user?.email || authStore.user?.phone }}</p>
         <p class="user-role">当前角色：{{ getRoleDisplayName(authStore.userRole) }}</p>
       </div>
     </div>
-    
+
     <div v-if="authStore.isAuthenticated" class="platform-sections">
       <div v-if="authStore.userRole === 'SUPER_ADMIN'" class="section-card admin-card">
         <div class="card-content">
@@ -42,7 +40,7 @@ const getRoleDisplayName = (role: string | undefined) => {
         <router-link to="/admin" class="btn btn-admin">进入管理控制台</router-link>
       </div>
 
-      <div v-if="authStore.userRole === 'HOSPITAL_ADMIN' || authStore.userRole === 'DOCTOR'" class="section-card">
+      <div v-if="authStore.userRole === 'SUPER_ADMIN' || authStore.userRole === 'DOCTOR'" class="section-card">
         <div class="card-content">
           <h2>医院端</h2>
           <p>专业医师培训与管理平台</p>
@@ -58,7 +56,7 @@ const getRoleDisplayName = (role: string | undefined) => {
         <router-link to="/parent" class="btn">进入家长端</router-link>
       </div>
 
-      <div v-if="authStore.userRole === 'SCHOOL_ADMIN'" class="section-card">
+      <div v-if="authStore.userRole === 'SUPER_ADMIN' || authStore.userRole === 'PARENT' || authStore.userRole === 'SCHOOL_ADMIN'" class="section-card">
         <div class="card-content">
           <h2>校园端</h2>
           <p>校园环境智能训练推送</p>
@@ -136,7 +134,7 @@ const getRoleDisplayName = (role: string | undefined) => {
   border-radius: 8px;
   padding: 2rem;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
   display: flex;
   flex-direction: column;
@@ -191,17 +189,16 @@ const getRoleDisplayName = (role: string | undefined) => {
   background: #c0392b;
 }
 
-/* 全屏幕响应式设计 */
 @media (max-width: 768px) {
   .hero-section h1 {
     font-size: 2.5rem;
   }
-  
+
   .platform-sections {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
-  
+
   .section-card {
     padding: 1.5rem;
   }
@@ -212,27 +209,27 @@ const getRoleDisplayName = (role: string | undefined) => {
     padding: 1.5rem 0;
     margin-bottom: 2rem;
   }
-  
+
   .hero-section h1 {
     font-size: 2rem;
   }
-  
+
   .hero-section p {
     font-size: 1rem;
   }
-  
+
   .platform-sections {
     gap: 1rem;
   }
-  
+
   .section-card {
     padding: 1rem;
   }
-  
+
   .section-card h2 {
     font-size: 1.3rem;
   }
-  
+
   .btn {
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
@@ -243,15 +240,15 @@ const getRoleDisplayName = (role: string | undefined) => {
   .hero-section h1 {
     font-size: 1.8rem;
   }
-  
+
   .section-card {
     padding: 0.8rem;
   }
-  
+
   .section-card h2 {
     font-size: 1.2rem;
   }
-  
+
   .btn {
     padding: 0.4rem 0.8rem;
     font-size: 0.8rem;

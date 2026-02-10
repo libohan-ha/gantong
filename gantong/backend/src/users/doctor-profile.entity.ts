@@ -1,30 +1,33 @@
-import { Entity, PrimaryColumn, Column, OneToOne, JoinColumn } from 'typeorm'
-import { User } from './user.entity'
+import { Entity, PrimaryColumn, Column, OneToOne, JoinColumn } from 'typeorm';
+import { User } from './user.entity';
 
 @Entity('doctor_profiles')
 export class DoctorProfile {
-  @PrimaryColumn() 
-  userId: number
+  @PrimaryColumn()
+  userId: number;
 
   @OneToOne(() => User, (u) => u.doctorProfile, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' }) 
-  user: User
+  @JoinColumn({ name: 'userId' })
+  user: User;
 
   @Column({ default: '' })
-  name: string
+  name: string;
 
   @Column({ default: '' })
-  hospital: string
+  hospital: string;
 
-  @Column({ nullable: true }) 
-  title?: string
+  @Column({ nullable: true })
+  title?: string;
 
-  @Column({ nullable: true, type: 'int' }) 
-  age?: number
+  @Column({ nullable: true, type: 'int' })
+  age?: number;
 
-  @Column({ nullable: true }) 
-  phone?: string
+  @Column({ nullable: true })
+  phone?: string;
 
-  @Column({ default: false }) 
-  verified: boolean
+  @Column({ nullable: true, length: 255 })
+  avatarUrl?: string;
+
+  @Column({ default: false })
+  verified: boolean;
 }

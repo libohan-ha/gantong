@@ -1,90 +1,89 @@
+<!--
+  病例隐私保护页面（医院端 / 医生端）
+
+  功能概述：
+    1. 「安全上传」标签页 —— 根据隐私规则选择上传类型，填写病例信息并上传附件
+    2. 「病例管理」标签页 —— 查看、搜索、筛选已有病例，支持编辑和删除
+    3. 「隐私规则」标签页 —— 展示各类病例上传的隐私保护要求和操作指导
+
+  数据来源：
+    - 医生个人资料：GET /doctors/me/profile（用于显示医生认证信息）
+    - 病例列表：GET /cases/mine（当前医生的病例）
+    - 上传病例：POST /cases（FormData 多文件上传）
+    - 更新病例：PATCH /cases/:id
+    - 删除病例：DELETE /cases/:id
+
+  角色限制：SUPER_ADMIN / DOCTOR（由路由守卫控制）
+-->
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { getMyProfile, type DoctorProfile as Profile } from '@/services/doctor'
 import { uploadCase, getMyCases, updateCase as apiUpdateCase, deleteCase as apiDeleteCase, type BackendCaseRecord } from '@/services/cases'
 
-// 病例类型枚举
+// ==================== 类型定义 ====================
+
+/** 病例类型：线上诊疗 / 线下门诊 */
 type CaseType = 'online' | 'offline'
+
+/** 身体部位类型：头部 / 四肢 / 躯干 / 关节 / 局部 / 功能性 */
 type BodyPartType = 'head' | 'limbs' | 'torso' | 'joints' | 'partial' | 'functional'
+
+/** 隐私敏感级别：低 / 中 / 高 / 极高 */
 type PrivacyLevel = 'low' | 'medium' | 'high' | 'critical'
+
+/** 病例状态：草稿 / 已上传 / 审核中 / 已通过 / 已拒绝 */
 type CaseStatus = 'draft' | 'uploaded' | 'reviewed' | 'approved' | 'rejected'
 
-// 病例文件接口
-interface CaseFile {
-  id: string
-  name: string
-  type: 'image' | 'video' | 'document'
-  size: number
-  uploadDate: string
-  bodyPart: BodyPartType
-  description: string
-  isEncrypted: boolean
-  privacyLevel: PrivacyLevel
-  url?: string
-  thumbnail?: string
-}
-
-// 病例记录接口
-interface CaseRecord {
-  id: string
-  patientId: string
-  caseType: CaseType
-  title: string
-  description: string
-  bodyParts: BodyPartType[]
-  symptoms: string[]
-  diagnosis?: string
-  files: CaseFile[]
-  doctorInfo: DoctorInfo
-  privacySettings: PrivacySettings
-  status: CaseStatus
-  createdAt: string
-  updatedAt: string
-  tags: string[]
-  isAnonymized: boolean
-}
-
-// 医生信息接口
-interface DoctorInfo {
-  id: string
-  name: string
-  title: string
-  hospital: string
-  department: string
-  licenseNumber: string
-  phone: string
-  email: string
-}
-
-// 隐私设置接口
+/** 隐私保护设置（前端配置，暂未对接后端存储） */
 interface PrivacySettings {
+  /** 是否匿名化患者身份 */
   anonymizePatient: boolean
+  /** 是否隐藏个人信息 */
   hidePersonalInfo: boolean
+  /** 是否限制访问权限 */
   limitedAccess: boolean
+  /** 是否加密文件 */
   encryptFiles: boolean
-  retentionPeriod: number // 天数
+  /** 数据保留期限（天数） */
+  retentionPeriod: number
+  /** 访问级别：公开 / 医院内 / 科室内 / 私密 */
   accessLevel: 'public' | 'hospital' | 'department' | 'private'
+  /** 是否允许分享 */
   allowSharing: boolean
+  /** 是否添加水印 */
   watermark: boolean
 }
 
-// 上传规则接口
+/** 上传规则配置（定义不同类型病例的隐私要求） */
 interface UploadRule {
+  /** 规则ID */
   id: string
+  /** 规则名称 */
   name: string
+  /** 规则描述 */
   description: string
+  /** 允许拍摄的身体部位 */
   allowedBodyParts: BodyPartType[]
-  maxFileSize: number // MB
+  /** 最大文件大小（MB） */
+  maxFileSize: number
+  /** 允许的文件 MIME 类型 */
   allowedFileTypes: string[]
+  /** 要求的隐私级别 */
   requiredPrivacyLevel: PrivacyLevel
+  /** 上传操作指导说明 */
   guidelines: string[]
+  /** 示例说明 */
   examples: string[]
 }
 
-// 当前医生信息（从后端加载）
+// ==================== 医生信息加载 ====================
+
+/** 当前登录医生的个人资料 */
 const doctorProfile = ref<Profile | null>(null)
+/** 医生信息加载状态 */
 const loadingDoctor = ref(false)
 
+/** 从后端加载当前医生的个人资料（用于页面顶部认证卡片展示） */
 const loadDoctorProfile = async () => {
   try {
     loadingDoctor.value = true
@@ -94,25 +93,42 @@ const loadDoctorProfile = async () => {
   }
 }
 
+/** 组件挂载时加载医生信息和病例列表 */
 onMounted(() => {
   loadDoctorProfile()
   loadMyCases()
 })
 
+// ==================== 错误处理 ====================
 
-// 兼容旧的 DoctorInfo 使用示例：将后端资料映射为 DoctorInfo 结构
-const currentDoctor = computed<DoctorInfo>(() => ({
-  id: String(doctorProfile.value?.userId ?? ''),
-  name: doctorProfile.value?.name || '医生',
-  title: doctorProfile.value?.title || '',
-  hospital: doctorProfile.value?.hospital || '',
-  department: '',
-  licenseNumber: '',
-  phone: doctorProfile.value?.phone || '',
-  email: ''
-}))
+/** API 错误响应类型 */
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string
+    }
+  }
+}
 
-// 上传规则配置
+/**
+ * 从 API 错误中提取错误消息
+ * @param error - 错误对象
+ * @param fallback - 无法提取时的默认提示
+ * @returns 错误消息字符串
+ */
+const getErrorMessage = (error: unknown, fallback: string) => {
+  const message = (error as ApiError)?.response?.data?.message
+  return typeof message === 'string' && message.trim() ? message : fallback
+}
+
+// ==================== 上传规则配置（前端静态配置） ====================
+
+/**
+ * 预定义的三种上传规则，对应不同隐私敏感度：
+ * 1. 局部病症上传（中敏感）—— 仅拍摄局部区域，避免面部
+ * 2. 功能性评估上传（低敏感）—— 功能性动作视频
+ * 3. 匿名化文档上传（高敏感）—— 匿名化处理后的文档
+ */
 const uploadRules = ref<UploadRule[]>([
   {
     id: 'rule_partial',
@@ -164,13 +180,20 @@ const uploadRules = ref<UploadRule[]>([
   }
 ])
 
-// 页面状态
+// ==================== 页面状态 ====================
+
+/** 当前激活的标签页：安全上传 / 病例管理 / 隐私规则 */
 const activeTab = ref<'upload' | 'manage' | 'rules'>('upload')
+/** 当前选中的上传规则（点击规则卡片后设置） */
 const selectedRule = ref<UploadRule | null>(null)
+/** 是否显示上传弹窗 */
 const showUploadModal = ref(false)
+/** 是否显示隐私设置面板 */
 const showPrivacySettings = ref(false)
 
-// 上传表单
+// ==================== 上传表单 ====================
+
+/** 上传表单数据（包含病例信息、文件列表、隐私设置） */
 const uploadForm = ref({
   title: '',
   description: '',
@@ -210,7 +233,7 @@ const editForm = ref<{ title: string; description: string | null }>({ title: '',
 
 const openEdit = (rec: BackendCaseRecord) => {
   editingCase.value = rec
-  editForm.value = { title: rec.title, description: (rec as any).description ?? '' }
+  editForm.value = { title: rec.title, description: rec.description ?? '' }
   showEditModal.value = true
 }
 const closeEdit = () => { showEditModal.value = false; editingCase.value = null }
@@ -225,8 +248,8 @@ const submitEdit = async () => {
     const idx = caseRecords.value.findIndex(c => c.id === updated.id)
     if (idx >= 0) caseRecords.value[idx] = updated
     closeEdit()
-  } catch (e: any) {
-    alert(e?.response?.data?.message || '更新失败，请重试')
+  } catch (e) {
+    alert(getErrorMessage(e, '更新失败，请重试'))
   }
 }
 
@@ -235,8 +258,8 @@ const confirmDelete = async (rec: BackendCaseRecord) => {
   try {
     await apiDeleteCase(rec.id)
     caseRecords.value = caseRecords.value.filter(c => c.id !== rec.id)
-  } catch (e: any) {
-    alert(e?.response?.data?.message || '删除失败，请重试')
+  } catch (e) {
+    alert(getErrorMessage(e, '删除失败，请重试'))
   }
 }
 
@@ -244,23 +267,6 @@ const confirmDelete = async (rec: BackendCaseRecord) => {
 const filterStatus = ref<CaseStatus | 'all'>('all')
 const filterType = ref<CaseType | 'all'>('all')
 const searchKeyword = ref('')
-
-// 身体部位选项
-const bodyPartOptions: Array<{ value: BodyPartType; label: string; icon: string; description: string }> = [
-  { value: 'head', label: '头部相关', icon: '🧠', description: '认知、注意力相关评估' },
-  { value: 'limbs', label: '四肢局部', icon: '🦵', description: '手足部分功能展示' },
-  { value: 'torso', label: '躯干部分', icon: '🫁', description: '核心稳定性相关' },
-  { value: 'joints', label: '关节活动', icon: '🦴', description: '关节活动度评估' },
-  { value: 'partial', label: '局部病症', icon: '🎯', description: '特定局部区域' },
-  { value: 'functional', label: '功能动作', icon: '🤸', description: '功能性动作评估' }
-]
-
-// 症状选项
-const symptomOptions = [
-  '平衡失调', '注意力不集中', '精细动作困难', '大运动发育迟缓',
-  '感觉统合失调', '语言发育迟缓', '社交技能不足', '认知发育异常',
-  '情绪调节困难', '学习困难', '多动症状', '自闭症谱系障碍'
-]
 
 // 过滤后的病例记录
 const filteredCaseRecords = computed(() => {
@@ -385,9 +391,9 @@ const submitCaseUpload = async () => {
 
     closeModal()
     alert('病例上传成功！')
-  } catch (e: any) {
+  } catch (e) {
     console.error('上传失败', e)
-    alert(e?.response?.data?.message || '上传失败，请重试')
+    alert(getErrorMessage(e, '上传失败，请重试'))
   }
 }
 

@@ -1,44 +1,50 @@
-import { IsInt, IsString, IsOptional, IsISO8601, Min, MaxLength } from 'class-validator'
+import {
+  IsInt,
+  IsString,
+  IsOptional,
+  IsISO8601,
+  Min,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateTrainingBookingDto {
   @IsInt()
-  trainingId: number
+  trainingId: number;
 
   @IsString()
   @MaxLength(50)
-  childName: string
+  childName: string;
 
   @IsInt()
   @Min(1)
-  childAge: number
+  childAge: number;
 
   @IsString()
   @MaxLength(10)
-  childGender: string
+  childGender: string;
 
   @IsString()
   @MaxLength(50)
-  parentName: string
+  parentName: string;
 
   @IsString()
   @MaxLength(30)
-  parentPhone: string
+  parentPhone: string;
 
   @IsOptional()
   @IsISO8601()
-  preferredDate?: string
+  preferredDate?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(50)
-  preferredTime?: string
+  preferredTime?: string;
 
   @IsOptional()
   @IsString()
-  symptoms?: string
+  symptoms?: string;
 
   @IsOptional()
   @IsString()
-  previousTreatment?: string
+  previousTreatment?: string;
 }
-

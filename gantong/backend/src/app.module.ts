@@ -19,6 +19,9 @@ import { GrowthModule } from './growth/growth.module';
 import { Child } from './growth/entities/child.entity';
 import { GrowthProfile } from './growth/entities/growth-profile.entity';
 import { HealthRecord } from './growth/entities/health-record.entity';
+import { ForumModule } from './forum/forum.module';
+import { AppointmentsModule } from './appointments/appointments.module';
+import { DoctorAppointment } from './appointments/entities/doctor-appointment.entity';
 
 @Module({
   imports: [
@@ -28,7 +31,17 @@ import { HealthRecord } from './growth/entities/health-record.entity';
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL,
-      entities: [User, DoctorProfile, Video, Training, TrainingBooking, Child, GrowthProfile, HealthRecord],
+      entities: [
+        User,
+        DoctorProfile,
+        Video,
+        Training,
+        TrainingBooking,
+        Child,
+        GrowthProfile,
+        HealthRecord,
+        DoctorAppointment,
+      ],
       synchronize: false, // 改为 false 以保护现有数据
       autoLoadEntities: true,
     }),
@@ -38,8 +51,11 @@ import { HealthRecord } from './growth/entities/health-record.entity';
     DoctorsModule,
     VideosModule,
     CasesModule,
+    ForumModule,
+
     TrainingsModule,
     GrowthModule,
+    AppointmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

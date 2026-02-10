@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="admin-container">
     <div class="admin-header">
       <h1>超级管理员控制台</h1>
@@ -6,7 +6,6 @@
     </div>
 
     <div class="admin-content">
-      <!-- 用户管理卡片 -->
       <div class="management-card">
         <div class="card-header">
           <h2>用户管理</h2>
@@ -14,19 +13,14 @@
             <el-input
               v-model="searchQuery"
               placeholder="搜索用户..."
-              style="width: 200px; margin-right: 10px;"
+              style="width: 220px; margin-right: 10px"
               clearable
             />
-            <el-button type="primary" @click="() => { console.log('按钮被点击了'); showCreateDialog = true }">
-              新建用户
-            </el-button>
-            <el-button @click="exportUsers">
-              导出用户
-            </el-button>
+            <el-button type="primary" @click="showCreateDialog = true">新建用户</el-button>
+            <el-button @click="fetchUsers">刷新</el-button>
           </div>
         </div>
 
-        <!-- 批量操作栏 -->
         <div v-if="selectedUsers.length > 0" class="batch-actions">
           <span class="selected-info">已选择 {{ selectedUsers.length }} 个用户</span>
           <el-button-group>
@@ -38,38 +32,37 @@
           <el-button size="small" @click="clearSelection">取消选择</el-button>
         </div>
 
-        <!-- 用户列表 -->
         <el-table
           ref="tableRef"
-          :data="filteredUsers"
+          :data="pagedUsers"
           style="width: 100%"
           v-loading="loading"
           @selection-change="handleSelectionChange"
         >
           <el-table-column type="selection" width="55" />
           <el-table-column prop="id" label="ID" width="80" />
-          <el-table-column prop="email" label="邮箱" />
-          <el-table-column prop="phone" label="手机号" />
-          <el-table-column prop="role" label="角色">
+          <el-table-column prop="email" label="邮箱" min-width="180" />
+          <el-table-column prop="phone" label="手机号" min-width="140" />
+          <el-table-column prop="role" label="角色" width="140">
             <template #default="scope">
               <el-tag :type="getRoleTagType(scope.row.role)">
                 {{ getRoleDisplayName(scope.row.role) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="enabled" label="状态" width="80">
+          <el-table-column prop="enabled" label="状态" width="90">
             <template #default="scope">
               <el-tag :type="scope.row.enabled ? 'success' : 'danger'">
                 {{ scope.row.enabled ? '启用' : '停用' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="createdAt" label="创建时间">
+          <el-table-column prop="createdAt" label="创建时间" min-width="180">
             <template #default="scope">
               {{ formatDate(scope.row.createdAt) }}
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="350">
+          <el-table-column label="操作" width="330">
             <template #default="scope">
               <el-button
                 size="small"
@@ -78,11 +71,7 @@
               >
                 编辑角色
               </el-button>
-              <el-button
-                size="small"
-                type="warning"
-                @click="resetPassword(scope.row)"
-              >
+              <el-button size="small" type="warning" @click="resetPassword(scope.row)">
                 重置密码
               </el-button>
               <el-button
@@ -105,33 +94,80 @@
           </el-table-column>
         </el-table>
 
-        <!-- 分页 -->
         <div class="pagination-container">
           <el-pagination
             v-model:current-page="currentPage"
             v-model:page-size="pageSize"
             :page-sizes="[10, 20, 50, 100]"
-            :total="totalUsers"
+            :total="filteredUsers.length"
             layout="total, sizes, prev, pager, next, jumper"
             @size-change="handleSizeChange"
             @current-change="handleCurrentChange"
           />
         </div>
       </div>
+
+      <div class="management-card" style="margin-top: 24px">
+        <div class="card-header">
+          <h2>论坛管理</h2>
+          <div class="header-actions">
+            <el-input
+              v-model="postsQuery"
+              placeholder="搜索帖子标题/内容/作者"
+              style="width: 260px; margin-right: 10px"
+              clearable
+              @keyup.enter="fetchPosts"
+            />
+            <el-button type="primary" @click="fetchPosts">查询</el-button>
+          </div>
+        </div>
+
+        <el-table :data="forumPosts" style="width: 100%" v-loading="postsLoading">
+          <el-table-column prop="id" label="ID" width="80" />
+          <el-table-column prop="title" label="标题" min-width="260" />
+          <el-table-column label="作者" width="180">
+            <template #default="scope">
+              {{ scope.row.author?.email || scope.row.author?.phone || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="分类" width="140">
+            <template #default="scope">
+              {{ scope.row.category?.name || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="创建时间" width="200">
+            <template #default="scope">
+              {{ new Date(scope.row.createdAt).toLocaleString('zh-CN') }}
+            </template>
+          </el-table-column>
+          <el-table-column label="回复/点赞" width="120">
+            <template #default="scope">
+              {{ `${scope.row.stats?.replies || 0} / ${scope.row.stats?.likes || 0}` }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120">
+            <template #default="scope">
+              <el-button size="small" type="danger" @click="deleteForumPost(scope.row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div class="pagination-container">
+          <el-pagination
+            v-model:current-page="postsPage"
+            v-model:page-size="postsPageSize"
+            :page-sizes="[10, 20, 50]"
+            :total="postsTotal"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handlePostsSizeChange"
+            @current-change="handlePostsCurrentChange"
+          />
+        </div>
+      </div>
     </div>
 
-    <!-- 新建用户对话框 -->
-    <el-dialog
-      v-model="showCreateDialog"
-      title="新建用户"
-      width="500px"
-    >
-      <el-form
-        ref="createFormRef"
-        :model="createForm"
-        :rules="createRules"
-        label-width="80px"
-      >
+    <el-dialog v-model="showCreateDialog" title="新建用户" width="500px">
+      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="90px">
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="createForm.email" />
         </el-form-item>
@@ -139,7 +175,7 @@
           <el-input v-model="createForm.phone" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input v-model="createForm.password" type="password" />
+          <el-input v-model="createForm.password" type="password" show-password />
         </el-form-item>
         <el-form-item label="角色" prop="role">
           <el-select v-model="createForm.role" style="width: 100%">
@@ -151,199 +187,182 @@
       </el-form>
       <template #footer>
         <el-button @click="showCreateDialog = false">取消</el-button>
-        <el-button type="primary" @click="createUser" :loading="creating">
-          创建
-        </el-button>
+        <el-button type="primary" :loading="creating" @click="createUser">创建</el-button>
       </template>
     </el-dialog>
 
-    <!-- 编辑角色对话框 -->
-    <el-dialog
-      v-model="showEditDialog"
-      title="编辑用户角色"
-      width="400px"
-    >
-      <el-form label-width="80px">
-        <el-form-item label="用户">
-          <span>{{ editingUser?.email || editingUser?.phone }}</span>
-        </el-form-item>
-        <el-form-item label="当前角色">
-          <el-tag :type="getRoleTagType(editingUser?.role)">
-            {{ getRoleDisplayName(editingUser?.role) }}
-          </el-tag>
-        </el-form-item>
-        <el-form-item label="新角色">
-          <el-select v-model="newRole" style="width: 100%">
-            <el-option label="家长" value="PARENT" />
-            <el-option label="医生" value="DOCTOR" />
-            <el-option label="学校管理员" value="SCHOOL_ADMIN" />
-          </el-select>
-        </el-form-item>
-      </el-form>
+    <el-dialog v-model="showEditDialog" title="编辑角色" width="420px">
+      <div style="margin-bottom: 12px">
+        用户：{{ editingUser?.email || editingUser?.phone || '-' }}
+      </div>
+      <el-select v-model="newRole" style="width: 100%">
+        <el-option label="家长" value="PARENT" />
+        <el-option label="医生" value="DOCTOR" />
+        <el-option label="学校管理员" value="SCHOOL_ADMIN" />
+      </el-select>
       <template #footer>
         <el-button @click="showEditDialog = false">取消</el-button>
-        <el-button type="primary" @click="updateUserRole" :loading="updating">
-          更新
-        </el-button>
+        <el-button type="primary" :loading="updating" @click="updateUserRole">保存</el-button>
       </template>
     </el-dialog>
 
-    <!-- 批量修改角色对话框 -->
-    <el-dialog
-      v-model="showBatchRoleDialog"
-      title="批量修改角色"
-      width="400px"
-    >
-      <el-form label-width="80px">
-        <el-form-item label="选中用户">
-          <span>{{ selectedUsers.length }} 个用户</span>
-        </el-form-item>
-        <el-form-item label="新角色">
-          <el-select v-model="batchRole" style="width: 100%">
-            <el-option label="家长" value="PARENT" />
-            <el-option label="医生" value="DOCTOR" />
-            <el-option label="学校管理员" value="SCHOOL_ADMIN" />
-          </el-select>
-        </el-form-item>
-      </el-form>
+    <el-dialog v-model="showBatchRoleDialog" title="批量修改角色" width="420px">
+      <div style="margin-bottom: 12px">将对 {{ selectedUsers.length }} 个用户生效</div>
+      <el-select v-model="batchRole" style="width: 100%">
+        <el-option label="家长" value="PARENT" />
+        <el-option label="医生" value="DOCTOR" />
+        <el-option label="学校管理员" value="SCHOOL_ADMIN" />
+      </el-select>
       <template #footer>
         <el-button @click="showBatchRoleDialog = false">取消</el-button>
-        <el-button type="primary" @click="batchChangeRole" :loading="batchUpdating">
-          批量修改
-        </el-button>
+        <el-button type="primary" :loading="batchUpdating" @click="batchChangeRole">确定</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
+import api from '@/services/api'
+import { HospitalForumService, type HospitalPostItem } from '@/services/hospital-forum'
 
-// 接口定义
+type UserRole = 'SUPER_ADMIN' | 'DOCTOR' | 'PARENT' | 'SCHOOL_ADMIN'
+type BatchAction = 'delete' | 'enable' | 'disable' | 'changeRole'
+
 interface User {
   id: number
   email?: string
   phone?: string
-  role: string
+  role: UserRole
   createdAt: string
-  enabled?: boolean
+  enabled: boolean
 }
 
 interface CreateUserForm {
   email: string
   phone: string
   password: string
-  role: string
+  role: Exclude<UserRole, 'SUPER_ADMIN'>
 }
 
-// 响应式数据
+interface BatchOperationResponse {
+  message: string
+}
+
 const loading = ref(false)
 const creating = ref(false)
 const updating = ref(false)
 const batchUpdating = ref(false)
+
 const users = ref<User[]>([])
 const searchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
-const totalUsers = ref(0)
 const selectedUsers = ref<User[]>([])
 
-// 对话框状态
 const showCreateDialog = ref(false)
 const showEditDialog = ref(false)
 const showBatchRoleDialog = ref(false)
 const editingUser = ref<User | null>(null)
-const newRole = ref('')
-const batchRole = ref('PARENT')
+const newRole = ref<Exclude<UserRole, 'SUPER_ADMIN'>>('PARENT')
+const batchRole = ref<Exclude<UserRole, 'SUPER_ADMIN'>>('PARENT')
 
-// 表格引用
-const tableRef = ref()
+const tableRef = ref<{ clearSelection: () => void } | null>(null)
 
-// 表单数据
 const createForm = ref<CreateUserForm>({
   email: '',
   phone: '',
   password: '',
-  role: 'PARENT'
+  role: 'PARENT',
 })
 
 const createFormRef = ref<FormInstance>()
 
-// 表单验证规则
 const createRules = {
-  email: [
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
-  ],
+  email: [{ type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 8, message: '密码长度不能少于8位', trigger: 'blur' }
+    { min: 8, message: '密码长度不能少于8位', trigger: 'blur' },
   ],
-  role: [
-    { required: true, message: '请选择角色', trigger: 'change' }
-  ]
+  role: [{ required: true, message: '请选择角色', trigger: 'change' }],
 }
 
-// 计算属性
 const filteredUsers = computed(() => {
   if (!searchQuery.value) return users.value
-  
+
   const query = searchQuery.value.toLowerCase()
-  return users.value.filter(user => 
-    user.email?.toLowerCase().includes(query) ||
-    user.phone?.includes(query) ||
-    getRoleDisplayName(user.role).includes(query)
-  )
+  return users.value.filter((user) => {
+    return (
+      user.email?.toLowerCase().includes(query) ||
+      user.phone?.includes(query) ||
+      getRoleDisplayName(user.role).includes(query)
+    )
+  })
 })
 
-// 工具函数
-const getRoleDisplayName = (role: string) => {
-  const roleMap: Record<string, string> = {
-    'SUPER_ADMIN': '超级管理员',
-    'HOSPITAL_ADMIN': '医院管理员',
-    'DOCTOR': '医生',
-    'PARENT': '家长',
-    'SCHOOL_ADMIN': '学校管理员'
+const pagedUsers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredUsers.value.slice(start, start + pageSize.value)
+})
+
+const getRoleDisplayName = (role: UserRole) => {
+  const roleMap: Record<UserRole, string> = {
+    SUPER_ADMIN: '超级管理员',
+    DOCTOR: '医生',
+    PARENT: '家长',
+    SCHOOL_ADMIN: '学校管理员',
   }
-  return roleMap[role] || role
+  return roleMap[role] ?? role
 }
 
-const getRoleTagType = (role: string) => {
-  const typeMap: Record<string, string> = {
-    'SUPER_ADMIN': 'danger',
-    'HOSPITAL_ADMIN': 'warning',
-    'DOCTOR': 'success',
-    'PARENT': 'info',
-    'SCHOOL_ADMIN': 'primary'
+const getRoleTagType = (role: UserRole) => {
+  const typeMap: Record<UserRole, string> = {
+    SUPER_ADMIN: 'danger',
+    DOCTOR: 'success',
+    PARENT: 'info',
+    SCHOOL_ADMIN: 'primary',
   }
-  return typeMap[role] || 'info'
+  return typeMap[role] ?? 'info'
 }
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleString('zh-CN')
 }
 
-// API 调用函数
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string | string[]
+    }
+  }
+}
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  const message = (error as ApiError)?.response?.data?.message
+  if (Array.isArray(message)) {
+    return message.join('；')
+  }
+  if (typeof message === 'string' && message.trim()) {
+    return message
+  }
+  return fallback
+}
+
 const fetchUsers = async () => {
   loading.value = true
   try {
-    const response = await fetch('http://localhost:3000/admin/users', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-      }
-    })
-    const data = await response.json()
+    const { data } = await api.get<User[]>('/admin/users')
     users.value = data
-    totalUsers.value = data.length
+    currentPage.value = 1
   } catch (error) {
-    ElMessage.error('获取用户列表失败')
+    ElMessage.error(getErrorMessage(error, '获取用户列表失败'))
   } finally {
     loading.value = false
   }
 }
 
-// 事件处理函数
 const handleSizeChange = (size: number) => {
   pageSize.value = size
   currentPage.value = 1
@@ -355,32 +374,19 @@ const handleCurrentChange = (page: number) => {
 
 const createUser = async () => {
   if (!createFormRef.value) return
-  
+
   try {
     const valid = await createFormRef.value.validate()
     if (!valid) return
-    
+
     creating.value = true
-    
-    const response = await fetch('http://localhost:3000/admin/users', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-      },
-      body: JSON.stringify(createForm.value)
-    })
-    
-    if (response.ok) {
-      ElMessage.success('用户创建成功')
-      showCreateDialog.value = false
-      createFormRef.value.resetFields()
-      await fetchUsers()
-    } else {
-      ElMessage.error('用户创建失败')
-    }
+    await api.post('/admin/users', createForm.value)
+    ElMessage.success('用户创建成功')
+    showCreateDialog.value = false
+    createFormRef.value.resetFields()
+    await fetchUsers()
   } catch (error) {
-    ElMessage.error('用户创建失败')
+    ElMessage.error(getErrorMessage(error, '用户创建失败'))
   } finally {
     creating.value = false
   }
@@ -388,33 +394,21 @@ const createUser = async () => {
 
 const editUser = (user: User) => {
   editingUser.value = user
-  newRole.value = user.role
+  newRole.value = user.role === 'SUPER_ADMIN' ? 'PARENT' : user.role
   showEditDialog.value = true
 }
 
 const updateUserRole = async () => {
   if (!editingUser.value) return
-  
+
   updating.value = true
   try {
-    const response = await fetch(`http://localhost:3000/admin/users/${editingUser.value.id}/role`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-      },
-      body: JSON.stringify({ role: newRole.value })
-    })
-    
-    if (response.ok) {
-      ElMessage.success('角色更新成功')
-      showEditDialog.value = false
-      await fetchUsers()
-    } else {
-      ElMessage.error('角色更新失败')
-    }
+    await api.patch(`/admin/users/${editingUser.value.id}/role`, { role: newRole.value })
+    ElMessage.success('角色更新成功')
+    showEditDialog.value = false
+    await fetchUsers()
   } catch (error) {
-    ElMessage.error('角色更新失败')
+    ElMessage.error(getErrorMessage(error, '角色更新失败'))
   } finally {
     updating.value = false
   }
@@ -428,27 +422,15 @@ const resetPassword = async (user: User) => {
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'warning'
-      }
+        type: 'warning',
+      },
     )
 
-    const response = await fetch(`http://localhost:3000/admin/users/${user.id}/reset-password`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-      }
-    })
-
-    if (response.ok) {
-      const result = await response.json()
-      ElMessage.success(`密码重置成功！临时密码：${result.tempPassword}`)
-    } else {
-      const error = await response.json()
-      ElMessage.error(error.message || '密码重置失败')
-    }
-  } catch (error: any) {
+    const { data } = await api.patch<{ tempPassword: string }>(`/admin/users/${user.id}/reset-password`)
+    ElMessage.success(`密码重置成功，临时密码：${data.tempPassword}`)
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('密码重置失败')
+      ElMessage.error(getErrorMessage(error, '密码重置失败'))
     }
   }
 }
@@ -456,46 +438,24 @@ const resetPassword = async (user: User) => {
 const toggleUserStatus = async (user: User) => {
   const action = user.enabled ? '停用' : '启用'
   try {
-    await ElMessageBox.confirm(
-      `确定要${action}用户 ${user.email || user.phone} 吗？`,
-      `${action}用户`,
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-
-    const response = await fetch(`http://localhost:3000/admin/users/${user.id}/status`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-      },
-      body: JSON.stringify({ enabled: !user.enabled })
+    await ElMessageBox.confirm(`确定要${action}用户 ${user.email || user.phone} 吗？`, `${action}用户`, {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
     })
 
-    if (response.ok) {
-      const result = await response.json()
-      ElMessage.success(result.message)
-      await fetchUsers()
-    } else {
-      const error = await response.json()
-      ElMessage.error(error.message || `用户${action}失败`)
-    }
-  } catch (error: any) {
+    const { data } = await api.patch<{ message: string }>(`/admin/users/${user.id}/status`, {
+      enabled: !user.enabled,
+    })
+    ElMessage.success(data.message)
+    await fetchUsers()
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(`用户${action}失败`)
+      ElMessage.error(getErrorMessage(error, `用户${action}失败`))
     }
   }
 }
 
-const exportUsers = () => {
-  // TODO: 实现导出功能
-  ElMessage.info('导出功能开发中...')
-}
-
-// 选择相关函数
 const handleSelectionChange = (selection: User[]) => {
   selectedUsers.value = selection
 }
@@ -505,41 +465,28 @@ const clearSelection = () => {
   selectedUsers.value = []
 }
 
-// 删除用户
 const deleteUser = async (user: User) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除用户 ${user.email || user.phone} 吗？此操作不可恢复！`,
+      `确定要删除用户 ${user.email || user.phone} 吗？此操作不可恢复。`,
       '删除用户',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'warning'
-      }
+        type: 'warning',
+      },
     )
 
-    const response = await fetch(`http://localhost:3000/admin/users/${user.id}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-      }
-    })
-
-    if (response.ok) {
-      ElMessage.success('用户删除成功')
-      await fetchUsers()
-    } else {
-      const error = await response.json()
-      ElMessage.error(error.message || '用户删除失败')
-    }
-  } catch (error: any) {
+    await api.delete(`/admin/users/${user.id}`)
+    ElMessage.success('用户删除成功')
+    await fetchUsers()
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('用户删除失败')
+      ElMessage.error(getErrorMessage(error, '用户删除失败'))
     }
   }
 }
 
-// 批量操作函数
 const batchEnable = async () => {
   await batchOperation('enable', '启用')
 }
@@ -551,18 +498,74 @@ const batchDisable = async () => {
 const batchDelete = async () => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除选中的 ${selectedUsers.value.length} 个用户吗？此操作不可恢复！`,
+      `确定要删除选中的 ${selectedUsers.value.length} 个用户吗？此操作不可恢复。`,
       '批量删除',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'warning'
-      }
+        type: 'warning',
+      },
     )
 
     await batchOperation('delete', '删除')
-  } catch (error) {
+  } catch {
     // 用户取消
+  }
+}
+
+const postsLoading = ref(false)
+const postsQuery = ref('')
+const forumPosts = ref<HospitalPostItem[]>([])
+const postsPage = ref(1)
+const postsPageSize = ref(10)
+const postsTotal = ref(0)
+
+const fetchPosts = async () => {
+  postsLoading.value = true
+  try {
+    const params: Record<string, number | string> = {
+      page: postsPage.value,
+      pageSize: postsPageSize.value,
+      sortBy: 'latestReply',
+    }
+    if (postsQuery.value) params.q = postsQuery.value
+
+    const res = await HospitalForumService.listPosts(params)
+    forumPosts.value = res.items
+    postsTotal.value = res.total
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '加载论坛数据失败'))
+  } finally {
+    postsLoading.value = false
+  }
+}
+
+const handlePostsSizeChange = (size: number) => {
+  postsPageSize.value = size
+  postsPage.value = 1
+  fetchPosts()
+}
+
+const handlePostsCurrentChange = (page: number) => {
+  postsPage.value = page
+  fetchPosts()
+}
+
+const deleteForumPost = async (row: HospitalPostItem) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除帖子“${row.title}”吗？此操作不可恢复。`, '删除帖子', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+
+    await HospitalForumService.deletePost(row.id)
+    ElMessage.success('帖子已删除')
+    fetchPosts()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(getErrorMessage(error, '删除失败'))
+    }
   }
 }
 
@@ -571,7 +574,7 @@ const batchChangeRole = async () => {
   showBatchRoleDialog.value = false
 }
 
-const batchOperation = async (action: string, actionName: string, role?: string) => {
+const batchOperation = async (action: BatchAction, actionName: string, role?: Exclude<UserRole, 'SUPER_ADMIN'>) => {
   if (selectedUsers.value.length === 0) {
     ElMessage.warning('请先选择用户')
     return
@@ -579,38 +582,27 @@ const batchOperation = async (action: string, actionName: string, role?: string)
 
   batchUpdating.value = true
   try {
-    const userIds = selectedUsers.value.map(user => user.id)
-    const body: any = { action, userIds }
+    const userIds = selectedUsers.value.map((user) => user.id)
+    const body: { action: BatchAction; userIds: number[]; role?: Exclude<UserRole, 'SUPER_ADMIN'> } = {
+      action,
+      userIds,
+    }
     if (role) body.role = role
 
-    const response = await fetch('http://localhost:3000/admin/users/batch', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-      },
-      body: JSON.stringify(body)
-    })
-
-    if (response.ok) {
-      const result = await response.json()
-      ElMessage.success(result.message)
-      clearSelection()
-      await fetchUsers()
-    } else {
-      const error = await response.json()
-      ElMessage.error(error.message || `批量${actionName}失败`)
-    }
+    const { data } = await api.post<BatchOperationResponse>('/admin/users/batch', body)
+    ElMessage.success(data.message)
+    clearSelection()
+    await fetchUsers()
   } catch (error) {
-    ElMessage.error(`批量${actionName}失败`)
+    ElMessage.error(getErrorMessage(error, `批量${actionName}失败`))
   } finally {
     batchUpdating.value = false
   }
 }
 
-// 生命周期
 onMounted(() => {
   fetchUsers()
+  fetchPosts()
 })
 </script>
 
@@ -680,5 +672,25 @@ onMounted(() => {
 .selected-info {
   color: #1976d2;
   font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .card-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .batch-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
 }
 </style>

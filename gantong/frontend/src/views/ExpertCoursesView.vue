@@ -7,15 +7,28 @@ const courses = ref<VideoUpload[]>([])
 const loading = ref(true)
 const error = ref('')
 
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string
+    }
+  }
+}
+
+const getErrorMessage = (err: unknown, fallback: string) => {
+  const message = (err as ApiError)?.response?.data?.message
+  return typeof message === 'string' && message.trim() ? message : fallback
+}
+
 // 加载专家课程
 const loadExpertCourses = async () => {
   try {
     loading.value = true
     const response = await VideoService.getExpertCourses({ orderBy: 'createdAt' })
     courses.value = response.data
-  } catch (err: any) {
+  } catch (err) {
     console.error('加载专家课程失败:', err)
-    error.value = err.response?.data?.message || '加载课程失败，请刷新页面重试'
+    error.value = getErrorMessage(err, '加载课程失败，请刷新页面重试')
   } finally {
     loading.value = false
   }
@@ -23,9 +36,10 @@ const loadExpertCourses = async () => {
 
 // 格式化时长
 // 没有时长就不显示任何文字，避免给用户“处理中”的误解
-const formatDuration = (durationSeconds?: number) => {
-  if (!durationSeconds || durationSeconds <= 0) return ''
-  const minutes = Math.max(1, Math.round(durationSeconds / 60))
+// 后端模型里 duration（分钟）可选，旧字段 durationSeconds 已移除
+const formatDuration = (durationMinutes?: number) => {
+  if (!durationMinutes || durationMinutes <= 0) return ''
+  const minutes = Math.max(1, Math.round(durationMinutes))
   return `约${minutes}分钟`
 }
 
@@ -80,7 +94,7 @@ onMounted(() => {
               <path d="M8 5V19L19 12L8 5Z" fill="white"/>
             </svg>
           </div>
-          <div v-if="formatDuration(course.durationSeconds)" class="duration-badge">{{ formatDuration(course.durationSeconds) }}</div>
+          <div v-if="formatDuration(course.duration)" class="duration-badge">{{ formatDuration(course.duration) }}</div>
         </div>
 
         <div class="course-content">

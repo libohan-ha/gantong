@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { listDoctors, createDoctorAppointment, type DoctorListItem } from '../services/experts'
 
 interface Expert {
   id: number
@@ -18,37 +19,46 @@ interface Expert {
   city: string
 }
 
-// 后端数据：有即将开始培训的医生列表
-import { onMounted } from 'vue'
-import { listDoctorsWithUpcomingTrainings, type DoctorWithTrainingSummary } from '../services/experts'
-
 const experts = ref<Expert[]>([])
 const loading = ref(false)
 const error = ref('')
 
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string
+    }
+  }
+}
+
+const getErrorMessage = (e: unknown, fallback: string) => {
+  const message = (e as ApiError)?.response?.data?.message
+  return typeof message === 'string' && message.trim() ? message : fallback
+}
+
 const loadExperts = async () => {
   try {
     loading.value = true
-    const res = await listDoctorsWithUpcomingTrainings({ page: 1, pageSize: 50 })
-    experts.value = res.items.map((d: DoctorWithTrainingSummary) => ({
+    const res = await listDoctors({ page: 1, pageSize: 50 })
+    experts.value = res.items.map((d: DoctorListItem) => ({
       id: d.doctorId,
       name: d.name,
       title: d.title || '',
       hospital: d.hospital,
-      specialty: [], // 后端暂未提供
+      specialty: [],
       experience: 0,
       education: '',
       achievements: [],
       introduction: '',
-      availableTime: d.nextStartAt ? [new Date(d.nextStartAt).toLocaleString()] : [],
+      availableTime: ['上午', '下午'],
       rating: 5.0,
-      consultationCount: d.trainingsCount,
+      consultationCount: 0,
       avatar: '/api/placeholder/120/120',
       city: '全部'
     }))
-  } catch (e: any) {
+  } catch (e) {
     console.error(e)
-    error.value = e?.response?.data?.message || '加载专家失败'
+    error.value = getErrorMessage(e, '加载专家失败')
   } finally {
     loading.value = false
   }
@@ -141,30 +151,27 @@ const closeBookingForm = () => {
 }
 
 // 提交预约（落库）
-import { getPublicTrainingById } from '../services/experts'
-import api from '../services/api'
 const submitBooking = async () => {
   if (!selectedExpert.value) return
   try {
-    // 简化：取该医生最近一场培训作为预约目标（后端聚合已提供 nextStartAt；此处再查一个培训ID）
-    // 如果需要让家长选培训，可改为在卡片中展示具体培训列表；MVP先自动匹配
-    const trainings = await api.get('/parent/experts/trainings', { params: { q: selectedExpert.value.name, pageSize: 1 } })
-    const training = trainings.data.items?.[0]
-    if (!training) {
-      alert('该专家暂无可预约的培训')
-      return
-    }
-
-    await api.post('/parent/experts/bookings', {
-      trainingId: training.id,
-      ...bookingForm.value,
+    await createDoctorAppointment({
+      doctorId: selectedExpert.value.id,
+      childName: bookingForm.value.childName,
+      childAge: Number(bookingForm.value.childAge),
+      childGender: bookingForm.value.childGender,
+      parentName: bookingForm.value.parentName,
+      parentPhone: bookingForm.value.parentPhone,
+      preferredDate: bookingForm.value.preferredDate || undefined,
+      preferredTime: bookingForm.value.preferredTime || undefined,
+      symptoms: bookingForm.value.symptoms || undefined,
+      previousTreatment: bookingForm.value.previousTreatment || undefined,
     })
 
-    alert('预约提交成功！我们会在24小时内与您联系确认预约时间。')
+    alert('预约提交成功！我们会尽快为您安排门诊。')
     showBookingForm.value = false
     selectedExpert.value = null
-  } catch (e: any) {
-    alert(e?.response?.data?.message || '预约失败，请稍后重试')
+  } catch (e) {
+    alert(getErrorMessage(e, '预约失败，请稍后重试'))
   } finally {
     // 重置表单
     bookingForm.value = {

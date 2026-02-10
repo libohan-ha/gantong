@@ -35,7 +35,7 @@
       <div class="category-card">
         <h3>分类3 - 门诊预约渠道</h3>
         <p>线下门诊预约渠道（暂定徐州儿童医院，北京京都儿童医院，计划酝酿合作国内所有医院）</p>
-        <button class="btn">预约管理</button>
+        <button class="btn" @click="$router.push('/hospital/appointment-management')">预约管理</button>
       </div>
       
       <div class="category-card">

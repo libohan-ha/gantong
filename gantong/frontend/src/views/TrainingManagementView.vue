@@ -13,8 +13,37 @@ import {
 } from '@/services/trainings'
 
 // 使用后端的 Training 接口
+type CourseStatus = 'draft' | 'published' | 'ongoing' | 'completed' | 'cancelled'
+
+interface CourseInstructor {
+  name: string
+  title: string
+  hospital: string
+  avatar: string
+  expertise: string[]
+}
+
+interface CourseScheduleItem {
+  date: string
+  time: string
+  topic: string
+  duration: number
+}
+
 interface TrainingCourse extends Training {
-  // 可以添加前端特有的计算属性
+  instructor: CourseInstructor
+  category: string
+  targetAudience: string[]
+  duration: number
+  fee: number
+  endDate: string
+  schedule: CourseScheduleItem[]
+  materials: string[]
+  requirements: string[]
+  status: CourseStatus
+  tags: string[]
+  location?: string
+  meetingLink?: string
   currentParticipants?: number
 }
 
@@ -35,6 +64,7 @@ interface Participant {
 const trainingCourses = ref<TrainingCourse[]>([
   {
     id: 1,
+    doctorUserId: 1,
     title: '儿童感统失调诊断与评估实务',
     description: '深入讲解儿童感统失调的临床诊断标准、评估工具使用、案例分析等内容，适合基层医院儿科医生和康复治疗师参加。',
     instructor: {
@@ -48,6 +78,7 @@ const trainingCourses = ref<TrainingCourse[]>([
     category: '诊断评估',
     targetAudience: ['儿科医生', '康复治疗师', '心理治疗师'],
     duration: 16,
+    durationHours: 16,
     maxParticipants: 100,
     currentParticipants: 78,
     fee: 0,
@@ -65,10 +96,12 @@ const trainingCourses = ref<TrainingCourse[]>([
     requirements: ['具备儿科或康复科临床经验', '熟悉基本计算机操作'],
     status: 'published',
     createdAt: '2024-07-01',
+    updatedAt: '2024-07-01',
     tags: ['免费', '热门', '基础']
   },
   {
     id: 2,
+    doctorUserId: 2,
     title: '感统训练技术与方法实训班',
     description: '通过实际操作学习各种感统训练技术，包括前庭训练、本体觉训练、触觉训练等具体方法和注意事项。',
     instructor: {
@@ -82,6 +115,7 @@ const trainingCourses = ref<TrainingCourse[]>([
     category: '训练技术',
     targetAudience: ['康复治疗师', '特教老师', '感统训练师'],
     duration: 24,
+    durationHours: 24,
     maxParticipants: 30,
     currentParticipants: 25,
     fee: 1200,
@@ -101,10 +135,12 @@ const trainingCourses = ref<TrainingCourse[]>([
     requirements: ['具备康复治疗相关背景', '身体健康，能参与体感训练'],
     status: 'published',
     createdAt: '2024-06-15',
+    updatedAt: '2024-06-15',
     tags: ['实操', '认证', '小班']
   },
   {
     id: 3,
+    doctorUserId: 3,
     title: '家庭感统训练指导与咨询',
     description: '教授医务人员如何指导家长进行家庭感统训练，提升家庭康复效果，减轻医院治疗压力。',
     instructor: {
@@ -118,6 +154,7 @@ const trainingCourses = ref<TrainingCourse[]>([
     category: '家庭指导',
     targetAudience: ['儿科医生', '康复医师', '护理人员'],
     duration: 12,
+    durationHours: 12,
     maxParticipants: 50,
     currentParticipants: 35,
     fee: 800,
@@ -135,10 +172,12 @@ const trainingCourses = ref<TrainingCourse[]>([
     requirements: ['有儿童康复相关经验', '具备网络视频会议条件'],
     status: 'ongoing',
     createdAt: '2024-06-20',
+    updatedAt: '2024-06-20',
     tags: ['混合模式', '实用']
   },
   {
     id: 4,
+    doctorUserId: 4,
     title: '感统失调研究前沿与循证实践',
     description: '介绍国内外感统失调领域最新研究成果，循证医学在感统康复中的应用，提升临床实践水平。',
     instructor: {
@@ -152,6 +191,7 @@ const trainingCourses = ref<TrainingCourse[]>([
     category: '学术研究',
     targetAudience: ['高年资医师', '科研人员', '研究生'],
     duration: 8,
+    durationHours: 8,
     maxParticipants: 200,
     currentParticipants: 145,
     fee: 600,
@@ -166,10 +206,12 @@ const trainingCourses = ref<TrainingCourse[]>([
     requirements: ['具备医学研究基础', '英文文献阅读能力'],
     status: 'published',
     createdAt: '2024-07-05',
+    updatedAt: '2024-07-05',
     tags: ['高级', '学术', '前沿']
   },
   {
     id: 5,
+    doctorUserId: 5,
     title: '基层医院感统科室建设指南',
     description: '帮助基层医院建立感统康复科室，包括人员配置、设备采购、流程建立等全方位指导。',
     instructor: {
@@ -183,6 +225,7 @@ const trainingCourses = ref<TrainingCourse[]>([
     category: '科室建设',
     targetAudience: ['科室主任', '医院管理者', '康复科负责人'],
     duration: 6,
+    durationHours: 6,
     maxParticipants: 20,
     currentParticipants: 18,
     fee: 2000,
@@ -197,6 +240,7 @@ const trainingCourses = ref<TrainingCourse[]>([
     requirements: ['具备科室管理权限', '有建设康复科室计划'],
     status: 'draft',
     createdAt: '2024-07-10',
+    updatedAt: '2024-07-10',
     tags: ['管理', '建设', '高端']
   }
 ])
@@ -232,7 +276,6 @@ const participants = ref<{ [courseId: number]: Participant[] }>({
 })
 
 // 页面状态
-const activeTab = ref('courses')
 const selectedCourse = ref<TrainingCourse | null>(null)
 const showCourseDetail = ref(false)
 const showCreateForm = ref(false)
@@ -272,6 +315,15 @@ const trainingTypeOptions = [
   { value: 'hybrid', label: '混合培训' }
 ]
 
+const statusOptions = [
+  { value: 'all', label: '全部状态' },
+  { value: 'draft', label: '草稿' },
+  { value: 'published', label: '已发布' },
+  { value: 'ongoing', label: '进行中' },
+  { value: 'completed', label: '已完成' },
+  { value: 'cancelled', label: '已取消' }
+]
+
 // 分类选项
 const categoryOptions = [
   { value: 'all', label: '全部分类' },
@@ -285,13 +337,15 @@ const categoryOptions = [
 // 过滤后的课程列表
 const filteredCourses = computed(() => {
   return trainingCourses.value.filter(course => {
+    const keyword = searchKeyword.value.trim()
     const typeMatch = filterType.value === 'all' || course.type === filterType.value
     const statusMatch = filterStatus.value === 'all' || course.status === filterStatus.value
     const categoryMatch = filterCategory.value === 'all' || course.category === filterCategory.value
-    const keywordMatch = searchKeyword.value === '' || 
-      course.title.includes(searchKeyword.value) ||
-      course.instructor.name.includes(searchKeyword.value) ||
-      course.description.includes(searchKeyword.value)
+    const keywordMatch =
+      keyword === '' ||
+      course.title.includes(keyword) ||
+      course.instructor.name.includes(keyword) ||
+      (course.description || '').includes(keyword)
     
     return typeMatch && statusMatch && categoryMatch && keywordMatch
   })
@@ -302,7 +356,10 @@ const statistics = computed(() => {
   const total = trainingCourses.value.length
   const published = trainingCourses.value.filter(c => c.status === 'published').length
   const ongoing = trainingCourses.value.filter(c => c.status === 'ongoing').length
-  const totalParticipants = trainingCourses.value.reduce((sum, c) => sum + c.currentParticipants, 0)
+  const totalParticipants = trainingCourses.value.reduce(
+    (sum, c) => sum + (c.currentParticipants || 0),
+    0
+  )
   
   return { total, published, ongoing, totalParticipants }
 })
@@ -412,14 +469,20 @@ const loadTrainings = async () => {
       duration: item.durationHours, // 兼容前端字段名
       currentParticipants: 0, // 暂时设为0，后续可扩展
       instructor: {
-        name: item.doctor?.doctorProfile?.name || '未命名医生',
+        name: item.doctor?.username || '未命名医生',
         title: item.doctor?.doctorProfile?.title || '医生',
         hospital: item.doctor?.doctorProfile?.hospital || '未填写医院',
         avatar: '/api/placeholder/80/80',
-        expertise: []
+        expertise: item.doctor?.doctorProfile?.specialties
+          ? item.doctor.doctorProfile.specialties
+              .split(',')
+              .map(specialty => specialty.trim())
+              .filter(Boolean)
+          : []
       },
       category: '感统训练', // 暂时固定
       targetAudience: ['基层医生'],
+      fee: 0,
       schedule: [],
       materials: [],
       requirements: [],
@@ -741,6 +804,13 @@ onMounted(() => {
             @click="viewCourseDetail(course)"
           >
             查看详情
+          </button>
+
+          <button
+            class="action-btn view-btn"
+            @click="viewParticipants(course)"
+          >
+            参与者
           </button>
 
           <button
@@ -1164,6 +1234,7 @@ onMounted(() => {
   margin-bottom: 1.5rem;
   line-height: 1.6;
   display: -webkit-box;
+  line-clamp: 3;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;

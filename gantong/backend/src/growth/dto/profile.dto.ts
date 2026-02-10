@@ -1,62 +1,71 @@
-import { ArrayMaxSize, IsArray, IsDateString, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsDateString,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class UpsertGrowthProfileDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(20)
   @Max(200)
-  heightCm?: number
+  heightCm?: number;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(5)
   @Max(100)
-  weightKg?: number
+  weightKg?: number;
 
   @IsOptional()
   @IsDateString()
-  lastPhysicalUpdated?: string
+  lastPhysicalUpdated?: string;
 
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
   @MaxLength(50, { each: true })
-  behaviorStrengths?: string[]
+  behaviorStrengths?: string[];
 
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
   @MaxLength(50, { each: true })
-  behaviorChallenges?: string[]
+  behaviorChallenges?: string[];
 
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
   @MaxLength(50, { each: true })
-  behaviorImprovements?: string[]
+  behaviorImprovements?: string[];
 
   @IsOptional()
   @IsInt()
   @Min(0)
   @Max(100)
-  dailySelfCare?: number
+  dailySelfCare?: number;
 
   @IsOptional()
   @IsInt()
   @Min(0)
   @Max(100)
-  dailyCommunication?: number
+  dailyCommunication?: number;
 
   @IsOptional()
   @IsInt()
   @Min(0)
   @Max(100)
-  dailySocial?: number
+  dailySocial?: number;
 
   @IsOptional()
   @IsInt()
   @Min(0)
   @Max(100)
-  dailyMotor?: number
+  dailyMotor?: number;
 }
-

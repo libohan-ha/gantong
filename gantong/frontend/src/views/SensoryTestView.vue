@@ -247,7 +247,6 @@ const totalScore = computed(() => {
 // 测试结果分析
 const getResult = computed(() => {
   const score = totalScore.value
-  const maxScore = questions.length * 3
   
   if (score > 40) {
     return {

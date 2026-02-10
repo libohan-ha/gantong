@@ -1,31 +1,37 @@
-import { IsString, IsOptional, IsArray, IsEnum, MaxLength } from 'class-validator'
-import { VideoDifficulty } from '../video.entity'
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsEnum,
+  MaxLength,
+} from 'class-validator';
+import { VideoDifficulty } from '../video.entity';
 
 export class UpdateVideoDto {
   @IsString()
   @IsOptional()
   @MaxLength(150)
-  title?: string
+  title?: string;
 
   @IsString()
   @IsOptional()
-  description?: string
+  description?: string;
 
   @IsString()
   @IsOptional()
-  category?: string
+  category?: string;
 
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  tags?: string[]
+  tags?: string[];
 
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
-  targetAudience?: string[]
+  targetAudience?: string[];
 
   @IsEnum(VideoDifficulty)
   @IsOptional()
-  difficulty?: VideoDifficulty
+  difficulty?: VideoDifficulty;
 }

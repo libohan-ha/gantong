@@ -1,97 +1,109 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm'
-import { User } from '../users/user.entity'
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { User } from '../users/user.entity';
 
 export enum VideoStatus {
   UPLOADING = 'uploading',
-  PROCESSING = 'processing', 
+  PROCESSING = 'processing',
   REVIEW = 'review',
   PUBLISHED = 'published',
-  REJECTED = 'rejected'
+  REJECTED = 'rejected',
 }
 
 export enum VideoDifficulty {
   BEGINNER = 'beginner',
   INTERMEDIATE = 'intermediate',
-  ADVANCED = 'advanced'
+  ADVANCED = 'advanced',
 }
 
 @Entity('videos')
 export class Video {
   @PrimaryGeneratedColumn('increment')
-  id: number
+  id: number;
 
   @Column()
-  authorUserId: number
+  authorUserId: number;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'authorUserId' })
-  author: User
+  author: User;
 
   @Column({ length: 150 })
-  title: string
+  title: string;
 
   @Column('text')
-  description: string
+  description: string;
 
   @Column({ length: 50 })
-  category: string
+  category: string;
 
   @Column('simple-array', { default: '' })
-  tags: string[]
+  tags: string[];
 
   @Column('simple-array', { default: '' })
-  targetAudience: string[]
+  targetAudience: string[];
 
-  @Column({ type: 'enum', enum: VideoDifficulty, default: VideoDifficulty.BEGINNER })
-  difficulty: VideoDifficulty
+  @Column({
+    type: 'enum',
+    enum: VideoDifficulty,
+    default: VideoDifficulty.BEGINNER,
+  })
+  difficulty: VideoDifficulty;
 
   @Column()
-  fileName: string
+  fileName: string;
 
   @Column('bigint')
-  fileSizeBytes: number
+  fileSizeBytes: number;
 
   @Column()
-  storagePath: string
+  storagePath: string;
 
   @Column({ nullable: true })
-  videoUrl?: string
+  videoUrl?: string;
 
   @Column({ nullable: true })
-  durationSeconds?: number
+  durationSeconds?: number;
 
   @Column({ nullable: true })
-  thumbnailUrl?: string
+  thumbnailUrl?: string;
 
   @Column({ type: 'enum', enum: VideoStatus, default: VideoStatus.PUBLISHED })
-  status: VideoStatus
+  status: VideoStatus;
 
   @Column({ nullable: true })
-  rejectionReason?: string
+  rejectionReason?: string;
 
   // 作者信息快照，防止医生资料变更影响历史展示
   @Column({ default: '' })
-  authorSnapshotName: string
+  authorSnapshotName: string;
 
   @Column({ default: '' })
-  authorSnapshotHospital: string
+  authorSnapshotHospital: string;
 
   @Column({ default: '' })
-  authorSnapshotTitle: string
+  authorSnapshotTitle: string;
 
   // 统计数据
   @Column({ default: 0 })
-  viewCount: number
+  viewCount: number;
 
   @Column({ default: 0 })
-  likeCount: number
+  likeCount: number;
 
   @Column({ default: 0 })
-  downloadCount: number
+  downloadCount: number;
 
   @CreateDateColumn()
-  createdAt: Date
+  createdAt: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date
+  updatedAt: Date;
 }

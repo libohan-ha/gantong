@@ -1,7 +1,7 @@
-import { MigrationInterface, QueryRunner } from 'typeorm'
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateGrowthModule1742231000000 implements MigrationInterface {
-  name = 'CreateGrowthModule1742231000000'
+  name = 'CreateGrowthModule1742231000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
@@ -15,11 +15,11 @@ export class CreateGrowthModule1742231000000 implements MigrationInterface {
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       )
-    `)
+    `);
 
     await queryRunner.query(`
       ALTER TABLE "children" ADD CONSTRAINT "FK_children_parent" FOREIGN KEY ("parent_user_id") REFERENCES "users"("id") ON DELETE CASCADE
-    `)
+    `);
 
     await queryRunner.query(`
       CREATE TABLE "growth_profiles" (
@@ -37,11 +37,11 @@ export class CreateGrowthModule1742231000000 implements MigrationInterface {
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       )
-    `)
+    `);
 
     await queryRunner.query(`
       ALTER TABLE "growth_profiles" ADD CONSTRAINT "FK_growth_child" FOREIGN KEY ("child_id") REFERENCES "children"("id") ON DELETE CASCADE
-    `)
+    `);
 
     await queryRunner.query(`
       CREATE TABLE "health_records" (
@@ -54,23 +54,30 @@ export class CreateGrowthModule1742231000000 implements MigrationInterface {
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       )
-    `)
+    `);
 
     await queryRunner.query(`
       ALTER TABLE "health_records" ADD CONSTRAINT "FK_health_child" FOREIGN KEY ("child_id") REFERENCES "children"("id") ON DELETE CASCADE
-    `)
+    `);
 
-    await queryRunner.query(`CREATE INDEX "idx_health_child_date" ON "health_records" ("child_id","date" DESC)`)
+    await queryRunner.query(
+      `CREATE INDEX "idx_health_child_date" ON "health_records" ("child_id","date" DESC)`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX "idx_health_child_date"`)
-    await queryRunner.query(`ALTER TABLE "health_records" DROP CONSTRAINT "FK_health_child"`)
-    await queryRunner.query(`DROP TABLE "health_records"`)
-    await queryRunner.query(`ALTER TABLE "growth_profiles" DROP CONSTRAINT "FK_growth_child"`)
-    await queryRunner.query(`DROP TABLE "growth_profiles"`)
-    await queryRunner.query(`ALTER TABLE "children" DROP CONSTRAINT "FK_children_parent"`)
-    await queryRunner.query(`DROP TABLE "children"`)
+    await queryRunner.query(`DROP INDEX "idx_health_child_date"`);
+    await queryRunner.query(
+      `ALTER TABLE "health_records" DROP CONSTRAINT "FK_health_child"`,
+    );
+    await queryRunner.query(`DROP TABLE "health_records"`);
+    await queryRunner.query(
+      `ALTER TABLE "growth_profiles" DROP CONSTRAINT "FK_growth_child"`,
+    );
+    await queryRunner.query(`DROP TABLE "growth_profiles"`);
+    await queryRunner.query(
+      `ALTER TABLE "children" DROP CONSTRAINT "FK_children_parent"`,
+    );
+    await queryRunner.query(`DROP TABLE "children"`);
   }
 }
-

@@ -1,63 +1,57 @@
-import axios from 'axios'
+﻿/**
+ * 医生个人资料服务模块
+ *
+ * 封装医生端个人资料相关的 API 调用，包括：
+ *   - 获取/更新医生个人资料
+ *   - 上传医生头像
+ *   - 获取医生统计数据（视频数、浏览量、点赞数、资料完整度）
+ */
 
-// 创建API实例
-const api = axios.create({
-  baseURL: 'http://localhost:3000',
-  timeout: 10000,
-})
+import api from './api'
 
-// 请求拦截器 - 添加认证token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
+// ==================== 类型定义 ====================
 
-// 响应拦截器 - 处理错误
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // token过期，清除本地存储并跳转登录
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
-    }
-    return Promise.reject(error)
-  }
-)
-
-// 医生资料接口定义
+/** 医生个人资料 */
 export interface DoctorProfile {
+  /** 关联的用户ID */
   userId: number
+  /** 医生姓名 */
   name: string
-  // 后端目前无昵称字段，这里预留可选字段，若后端增加将自动兼容
+  /** 昵称 */
   nickname?: string
+  /** 年龄 */
   age?: number
+  /** 职称（如：主任医师、副主任医师） */
   title?: string
+  /** 联系电话 */
   phone?: string
+  /** 所属医院 */
   hospital: string
+  /** 头像URL */
+  avatarUrl?: string
+  /** 是否已通过认证 */
   verified: boolean
 }
 
-// 更新医生资料的请求体
+/** 更新医生个人资料的请求参数（所有字段均可选） */
 export interface UpdateDoctorProfileRequest {
+  /** 医生姓名 */
   name?: string
+  /** 年龄 */
   age?: number
+  /** 职称 */
   title?: string
+  /** 联系电话 */
   phone?: string
+  /** 所属医院 */
   hospital?: string
 }
 
+// ==================== API 函数 ====================
+
 /**
- * 获取我的医生资料
+ * 获取当前登录医生的个人资料
+ * @returns 医生个人资料信息
  */
 export async function getMyProfile(): Promise<DoctorProfile> {
   const response = await api.get<DoctorProfile>('/doctors/me/profile')
@@ -65,7 +59,9 @@ export async function getMyProfile(): Promise<DoctorProfile> {
 }
 
 /**
- * 更新我的医生资料
+ * 更新当前登录医生的个人资料
+ * @param payload - 要更新的字段
+ * @returns 更新后的医生个人资料
  */
 export async function updateMyProfile(payload: UpdateDoctorProfileRequest): Promise<DoctorProfile> {
   const response = await api.patch<DoctorProfile>('/doctors/me/profile', payload)
@@ -73,33 +69,40 @@ export async function updateMyProfile(payload: UpdateDoctorProfileRequest): Prom
 }
 
 /**
- * 上传头像
+ * 上传医生头像
+ * 使用 FormData 提交图片文件
+ * @param file - 头像图片文件
+ * @returns 包含头像URL的响应
  */
 export async function uploadAvatar(file: File): Promise<{ avatarUrl: string }> {
   const formData = new FormData()
   formData.append('avatar', file)
-  
+
   const response = await api.post<{ avatarUrl: string }>('/doctors/me/avatar', formData, {
     headers: {
-      'Content-Type': 'multipart/form-data'
-    }
+      'Content-Type': 'multipart/form-data',
+    },
   })
   return response.data
 }
 
-/**
- * 获取医生统计信息
- */
+/** 医生统计数据 */
 export interface DoctorStats {
+  /** 上传的视频数量 */
   videoCount: number
+  /** 视频总浏览量 */
   totalViews: number
+  /** 视频总点赞数 */
   totalLikes: number
+  /** 个人资料完整度（百分比，0-100） */
   profileCompleteness: number
 }
 
+/**
+ * 获取当前登录医生的统计数据
+ * @returns 医生的各项统计指标
+ */
 export async function getMyStats(): Promise<DoctorStats> {
   const response = await api.get<DoctorStats>('/doctors/me/stats')
   return response.data
 }
-
-export default api

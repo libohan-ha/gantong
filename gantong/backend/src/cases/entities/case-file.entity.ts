@@ -1,37 +1,43 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm'
-import { CaseRecord } from './case-record.entity'
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+} from 'typeorm';
+import { CaseRecord } from './case-record.entity';
 
 @Entity('case_files')
 export class CaseFile {
   @PrimaryGeneratedColumn('increment')
-  id: number
+  id: number;
 
   @Column()
-  caseId: number
+  caseId: number;
 
   @ManyToOne(() => CaseRecord, (c) => c.files, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'caseId' })
-  caseRecord: CaseRecord
+  caseRecord: CaseRecord;
 
   @Column({ length: 255 })
-  originalName: string
+  originalName: string;
 
   @Column({ length: 120 })
-  mimeType: string
+  mimeType: string;
 
   @Column('bigint')
-  size: number
+  size: number;
 
   @Column({ length: 1000 })
-  storagePath: string
+  storagePath: string;
 
   @Column({ default: false })
-  isEncrypted: boolean
+  isEncrypted: boolean;
 
   @Column({ type: 'varchar', nullable: true, length: 128 })
-  checksum?: string | null
+  checksum?: string | null;
 
   @CreateDateColumn()
-  createdAt: Date
+  createdAt: Date;
 }
-

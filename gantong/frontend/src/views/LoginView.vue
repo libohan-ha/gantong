@@ -1,8 +1,8 @@
-<template>
+﻿<template>
   <div class="login-container">
     <div class="login-card">
       <div class="login-header">
-        <h2>慧悦-学院</h2>
+        <h2>感统学院</h2>
         <p>感统训练管理系统</p>
       </div>
 
@@ -47,14 +47,11 @@
         </el-form-item>
 
         <div class="login-footer">
-          <el-link type="primary" @click="showRegister = true">
-            还没有账号？立即注册
-          </el-link>
+          <el-link type="primary" @click="showRegister = true">还没有账号？立即注册</el-link>
         </div>
       </el-form>
     </div>
 
-    <!-- 注册对话框 -->
     <el-dialog
       v-model="showRegister"
       title="用户注册"
@@ -101,13 +98,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="handleRegisterClose">取消</el-button>
-          <el-button
-            type="primary"
-            :loading="authStore.isLoading"
-            @click="handleRegister"
-          >
-            注册
-          </el-button>
+          <el-button type="primary" :loading="authStore.isLoading" @click="handleRegister">注册</el-button>
         </span>
       </template>
     </el-dialog>
@@ -115,27 +106,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElForm, ElMessage } from 'element-plus'
-import { User, Lock } from '@element-plus/icons-vue'
+import { ElForm } from 'element-plus'
+import type { FormItemRule, FormRules } from 'element-plus'
+import { Lock, User } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import type { LoginRequest, RegisterRequest } from '@/services/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-// 表单引用
 const loginFormRef = ref<InstanceType<typeof ElForm>>()
 const registerFormRef = ref<InstanceType<typeof ElForm>>()
 
-// 登录表单
 const loginForm = reactive<LoginRequest>({
   email: '',
   password: '',
 })
 
-// 注册表单
 const registerForm = reactive<RegisterRequest & { confirmPassword: string }>({
   email: '',
   password: '',
@@ -143,102 +132,97 @@ const registerForm = reactive<RegisterRequest & { confirmPassword: string }>({
   role: 'PARENT',
 })
 
-// 显示注册对话框
 const showRegister = ref(false)
 
-// 验证规则
-const loginRules = {
+const loginRules: FormRules = {
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
+    { required: true, message: '请输入邮箱', trigger: 'blur' } as FormItemRule,
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' } as FormItemRule,
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' },
+    { required: true, message: '请输入密码', trigger: 'blur' } as FormItemRule,
+    { min: 8, message: '密码长度不能少于8位', trigger: 'blur' } as FormItemRule,
   ],
 }
 
-const registerRules = {
+const registerRules: FormRules = {
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
+    { required: true, message: '请输入邮箱', trigger: 'blur' } as FormItemRule,
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' } as FormItemRule,
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' },
+    { required: true, message: '请输入密码', trigger: 'blur' } as FormItemRule,
+    { min: 8, message: '密码长度不能少于8位', trigger: 'blur' } as FormItemRule,
   ],
   confirmPassword: [
-    { required: true, message: '请确认密码', trigger: 'blur' },
+    { required: true, message: '请确认密码', trigger: 'blur' } as FormItemRule,
     {
-      validator: (rule: any, value: string, callback: Function) => {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
         if (value !== registerForm.password) {
           callback(new Error('两次输入的密码不一致'))
-        } else {
-          callback()
+          return
         }
+        callback()
       },
       trigger: 'blur',
-    },
+    } as FormItemRule,
   ],
-  role: [{ required: true, message: '请选择角色', trigger: 'change' }],
+  role: [{ required: true, message: '请选择角色', trigger: 'change' } as FormItemRule],
 }
 
-// 处理登录
 const handleLogin = async () => {
   if (!loginFormRef.value) return
 
   try {
     const valid = await loginFormRef.value.validate()
-    if (valid) {
-      const success = await authStore.login(loginForm)
-      if (success) {
-        // 根据用户角色跳转到相应页面
-        const role = authStore.userRole
-        switch (role) {
-          case 'SUPER_ADMIN':
-            router.push('/admin')
-            break
-          case 'HOSPITAL_ADMIN':
-          case 'DOCTOR':
-            router.push('/hospital')
-            break
-          case 'PARENT':
-            router.push('/parent')
-            break
-          case 'SCHOOL_ADMIN':
-            router.push('/school')
-            break
-          default:
-            router.push('/')
-        }
-      }
+    if (!valid) return
+
+    const success = await authStore.login(loginForm)
+    if (!success) return
+
+    switch (authStore.userRole) {
+      case 'SUPER_ADMIN':
+        router.push('/admin')
+        break
+      case 'DOCTOR':
+        router.push('/hospital')
+        break
+      case 'PARENT':
+        router.push('/parent')
+        break
+      case 'SCHOOL_ADMIN':
+        router.push('/school')
+        break
+      default:
+        router.push('/')
     }
   } catch (error) {
-    console.error('登录验证失败:', error)
+    console.error('登录校验失败:', error)
   }
 }
 
-// 处理注册
 const handleRegister = async () => {
   if (!registerFormRef.value) return
 
   try {
     const valid = await registerFormRef.value.validate()
-    if (valid) {
-      const { confirmPassword, ...registerData } = registerForm
-      const success = await authStore.register(registerData)
-      if (success) {
-        showRegister.value = false
-        // 重置注册表单
-        registerFormRef.value.resetFields()
-      }
+    if (!valid) return
+
+    const registerData = {
+      email: registerForm.email,
+      password: registerForm.password,
+      role: registerForm.role,
     }
+    const success = await authStore.register(registerData)
+    if (!success) return
+
+    showRegister.value = false
+    registerFormRef.value.resetFields()
   } catch (error) {
-    console.error('注册验证失败:', error)
+    console.error('注册校验失败:', error)
   }
 }
 
-// 关闭注册对话框
 const handleRegisterClose = () => {
   showRegister.value = false
   registerFormRef.value?.resetFields()

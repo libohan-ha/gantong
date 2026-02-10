@@ -1,5 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, OneToMany } from 'typeorm'
-import { DoctorProfile } from './doctor-profile.entity'
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  OneToMany,
+} from 'typeorm';
+import { DoctorProfile } from './doctor-profile.entity';
 
 export enum Role {
   SUPER_ADMIN = 'SUPER_ADMIN',
@@ -10,30 +16,30 @@ export enum Role {
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn('increment') 
-  id: number
-
-  @Column({ unique: true, nullable: true }) 
-  email?: string
+  @PrimaryGeneratedColumn('increment')
+  id: number;
 
   @Column({ unique: true, nullable: true })
-  phone?: string
+  email?: string;
 
-  @Column({ select: false, nullable: true }) 
-  passwordHash?: string
+  @Column({ unique: true, nullable: true })
+  phone?: string;
+
+  @Column({ select: false, nullable: true })
+  passwordHash?: string;
 
   @Column({ type: 'enum', enum: Role, default: Role.PARENT })
-  role: Role
+  role: Role;
 
   @Column({ default: true })
-  enabled: boolean
+  enabled: boolean;
 
   @Column({ type: 'timestamptz', default: () => 'now()' })
-  createdAt: Date
+  createdAt: Date;
 
   @OneToOne(() => DoctorProfile, (p) => p.user, { cascade: true })
-  doctorProfile?: DoctorProfile
+  doctorProfile?: DoctorProfile;
 
   @OneToMany('Video', 'author')
-  videos?: any[]
+  videos?: any[];
 }

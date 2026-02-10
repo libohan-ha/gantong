@@ -1,35 +1,42 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm'
-import { User } from '../../users/user.entity'
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { User } from '../../users/user.entity';
 
-export type Gender = '男' | '女' | '未知'
+export type Gender = '男' | '女' | '未知';
 
 @Entity('children')
 export class Child {
   @PrimaryGeneratedColumn()
-  id: number
+  id: number;
 
   @Column({ name: 'parent_user_id' })
-  parentUserId: number
+  parentUserId: number;
   @ManyToOne(() => User)
   @JoinColumn({ name: 'parent_user_id' })
-  parent?: User
+  parent?: User;
 
   @Column({ length: 50 })
-  name: string
+  name: string;
 
   @Column({ type: 'varchar', length: 10, default: '未知' })
-  gender: Gender
+  gender: Gender;
 
   @Column({ type: 'date' })
-  birthDate: string
+  birthDate: string;
 
   @Column({ name: 'avatar_url', type: 'varchar', length: 255, nullable: true })
-  avatarUrl: string | null
+  avatarUrl: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date
+  createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date
+  updatedAt: Date;
 }
-

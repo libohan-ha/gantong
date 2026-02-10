@@ -35,6 +35,22 @@ type VideoUpload = ApiVideoUpload & {
   downloads?: number // 兼容字段，映射到 downloadCount
 }
 
+type ApiError = {
+  response?: {
+    status?: number
+    data?: {
+      message?: string
+    }
+  }
+}
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  const message = (error as ApiError)?.response?.data?.message
+  return typeof message === 'string' && message.trim() ? message : fallback
+}
+
+const getErrorStatus = (error: unknown) => (error as ApiError)?.response?.status
+
 // 当前医生档案
 const doctorProfile = ref<DoctorProfile>({
   name: '',
@@ -60,22 +76,22 @@ const uploadedVideos = ref<VideoUpload[]>([
     category: '临床诊断',
     tags: ['感统失调', '早期干预', '临床诊断'],
     duration: 45,
-    fileSize: 580,
+    fileSizeBytes: 580 * 1024 * 1024,
     fileName: '感统失调识别与干预.mp4',
     uploadDate: '2024-07-01',
     status: 'published',
-    mainInstructor: {
-      name: '张慧敏',
-      hospital: '北京儿童医院',
-      title: '主任医师'
-    },
+    authorSnapshotName: '张慧敏',
+    authorSnapshotHospital: '北京儿童医院',
+    authorSnapshotTitle: '主任医师',
     targetAudience: ['儿科医生', '康复治疗师'],
     difficulty: 'intermediate',
-    thumbnail: '/api/placeholder/300/200',
+    thumbnailUrl: '/api/placeholder/300/200',
     videoUrl: 'https://example.com/video1.mp4',
     viewCount: 1250,
-    likes: 89,
-    downloads: 156
+    likeCount: 89,
+    downloadCount: 156,
+    createdAt: '2024-07-01T00:00:00Z',
+    updatedAt: '2024-07-01T00:00:00Z'
   },
   {
     id: 2,
@@ -84,21 +100,21 @@ const uploadedVideos = ref<VideoUpload[]>([
     category: '家庭康复',
     tags: ['家庭训练', '家长指导', '康复技巧'],
     duration: 60,
-    fileSize: 720,
+    fileSizeBytes: 720 * 1024 * 1024,
     fileName: '家庭训练指导.mp4',
     uploadDate: '2024-06-28',
     status: 'review',
-    mainInstructor: {
-      name: '李建华',
-      hospital: '上海市儿童医院',
-      title: '副主任医师'
-    },
+    authorSnapshotName: '李建华',
+    authorSnapshotHospital: '上海市儿童医院',
+    authorSnapshotTitle: '副主任医师',
     targetAudience: ['康复医师', '护理人员'],
     difficulty: 'beginner',
-    thumbnail: '/api/placeholder/300/200',
+    thumbnailUrl: '/api/placeholder/300/200',
     viewCount: 0,
-    likes: 0,
-    downloads: 0
+    likeCount: 0,
+    downloadCount: 0,
+    createdAt: '2024-06-28T00:00:00Z',
+    updatedAt: '2024-06-28T00:00:00Z'
   },
   {
     id: 3,
@@ -107,30 +123,28 @@ const uploadedVideos = ref<VideoUpload[]>([
     category: '器械使用',
     tags: ['训练器械', '安全操作', '使用指南'],
     duration: 35,
-    fileSize: 420,
+    fileSizeBytes: 420 * 1024 * 1024,
     fileName: '器械安全使用.mp4',
     uploadDate: '2024-06-25',
     status: 'rejected',
-    mainInstructor: {
-      name: '王芳',
-      hospital: '广州市妇女儿童医疗中心',
-      title: '主治医师'
-    },
+    authorSnapshotName: '王芳',
+    authorSnapshotHospital: '广州市妇女儿童医疗中心',
+    authorSnapshotTitle: '主治医师',
     targetAudience: ['康复治疗师', '护理人员'],
     difficulty: 'beginner',
-    thumbnail: '/api/placeholder/300/200',
+    thumbnailUrl: '/api/placeholder/300/200',
     viewCount: 0,
-    likes: 0,
-    downloads: 0,
-    rejectionReason: '视频质量不够清晰，建议重新录制'
+    likeCount: 0,
+    downloadCount: 0,
+    rejectionReason: '视频质量不够清晰，建议重新录制',
+    createdAt: '2024-06-25T00:00:00Z',
+    updatedAt: '2024-06-25T00:00:00Z'
   }
 ])
 
 // 页面状态
 const activeTab = ref('videos')
-const showVerificationModal = ref(false)
 const showUploadModal = ref(false)
-const isProfileVerified = ref(true) // 默认为已认证，取消认证要求
 
 // 上传表单数据
 const uploadForm = ref({
@@ -166,28 +180,6 @@ const audienceOptions = [
   '心理治疗师',
   '特教老师',
   '医学生'
-]
-
-const titleOptions = [
-  '主任医师',
-  '副主任医师',
-  '主治医师',
-  '住院医师',
-  '主任护师',
-  '副主任护师',
-  '主管护师',
-  '护师'
-]
-
-const specialtyOptions = [
-  '儿科学',
-  '康复医学',
-  '神经内科',
-  '心理学',
-  '特殊教育',
-  '护理学',
-  '物理治疗',
-  '作业治疗'
 ]
 
 // 统计数据
@@ -261,6 +253,16 @@ const handleFileSelect = (event: Event) => {
   }
 }
 
+const handleTagInputEnter = (event: KeyboardEvent) => {
+  const target = event.target as HTMLInputElement | null
+  if (!target) return
+  const value = target.value.trim()
+  if (value && !uploadForm.value.tags.includes(value)) {
+    uploadForm.value.tags.push(value)
+  }
+  target.value = ''
+}
+
 // 提交视频上传
 const submitUpload = async () => {
   if (!validateUploadForm()) {
@@ -303,7 +305,7 @@ const submitUpload = async () => {
       },
       fileSize: Math.round(newVideo.fileSizeBytes / (1024 * 1024)),
       uploadDate: newVideo.createdAt.split('T')[0],
-      duration: newVideo.durationSeconds ? Math.round(newVideo.durationSeconds / 60) : 0,
+      duration: newVideo.duration ?? 0,
       likes: newVideo.likeCount,
       downloads: newVideo.downloadCount
     }
@@ -317,9 +319,9 @@ const submitUpload = async () => {
     activeTab.value = 'videos'
 
     alert('视频上传成功！')
-  } catch (error: any) {
+  } catch (error) {
     console.error('上传失败:', error)
-    alert(error.response?.data?.message || '上传失败，请重试')
+    alert(getErrorMessage(error, '上传失败，请重试'))
     isUploading.value = false
     uploadProgress.value = 0
   }
@@ -356,9 +358,9 @@ const deleteVideo = async (videoId: number) => {
         uploadedVideos.value.splice(index, 1)
       }
       alert('视频已删除')
-    } catch (error: any) {
+    } catch (error) {
       console.error('删除失败:', error)
-      alert(error.response?.data?.message || '删除失败，请重试')
+      alert(getErrorMessage(error, '删除失败，请重试'))
     }
   }
 }
@@ -394,14 +396,15 @@ const loadMyVideos = async () => {
       },
       fileSize: Math.round(video.fileSizeBytes / (1024 * 1024)),
       uploadDate: video.createdAt.split('T')[0],
-      duration: video.durationSeconds ? Math.round(video.durationSeconds / 60) : 0,
+      duration: video.duration ?? 0,
       likes: video.likeCount,
       downloads: video.downloadCount
     }))
-  } catch (error: any) {
+  } catch (error) {
     console.error('加载视频列表失败:', error)
     // 如果是认证错误，不显示错误提示（可能是未登录）
-    if (error.response?.status !== 401 && error.response?.status !== 403) {
+    const status = getErrorStatus(error)
+    if (status !== 401 && status !== 403) {
       alert('加载视频列表失败，请刷新页面重试')
     }
   }
@@ -577,8 +580,8 @@ onMounted(() => {
         >
           <div class="video-thumbnail">
             <div class="thumbnail-placeholder">📹</div>
-            <div class="video-duration">{{ formatDuration(video.duration) }}</div>
-            <span 
+            <div class="video-duration">{{ formatDuration(video.duration || 0) }}</div>
+            <span
               class="status-badge"
               :style="{ 
                 color: getStatusInfo(video.status).color,
@@ -596,9 +599,9 @@ onMounted(() => {
             <div class="video-meta">
               <div class="instructor-info">
                 <span class="instructor-label">主讲医师：</span>
-                <span class="instructor-name">{{ video.mainInstructor.name }}</span>
+                <span class="instructor-name">{{ video.mainInstructor?.name }}</span>
                 <span class="instructor-details">
-                  {{ video.mainInstructor.title }} | {{ video.mainInstructor.hospital }}
+                  {{ video.mainInstructor?.title }} | {{ video.mainInstructor?.hospital }}
                 </span>
               </div>
               
@@ -613,7 +616,7 @@ onMounted(() => {
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">文件大小：</span>
-                  <span class="detail-value">{{ formatFileSize(video.fileSize) }}</span>
+                  <span class="detail-value">{{ formatFileSize(video.fileSize || 0) }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">上传时间：</span>
@@ -733,13 +736,7 @@ onMounted(() => {
                 <input 
                   type="text" 
                   placeholder="输入标签后按回车"
-                  @keydown.enter.prevent="(e) => {
-                    const value = (e.target as HTMLInputElement).value.trim()
-                    if (value && !uploadForm.tags.includes(value)) {
-                      uploadForm.tags.push(value);
-                      (e.target as HTMLInputElement).value = ''
-                    }
-                  }"
+                  @keydown.enter.prevent="handleTagInputEnter"
                 >
               </div>
             </div>
@@ -1181,6 +1178,7 @@ onMounted(() => {
   margin-bottom: 1rem;
   line-height: 1.6;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;

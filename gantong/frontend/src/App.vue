@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onMounted } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { ArrowDown } from '@element-plus/icons-vue'
@@ -7,18 +7,15 @@ import { useAuthStore } from '@/stores/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 
-// 初始化认证状态
 onMounted(async () => {
   await authStore.initAuth()
 })
 
-// 处理登出
 const handleLogout = () => {
   authStore.logout()
   router.push('/login')
 }
 
-// 处理用户下拉菜单命令
 const handleUserCommand = (command: string) => {
   if (command === 'logout') {
     handleLogout()
@@ -31,15 +28,15 @@ const handleUserCommand = (command: string) => {
     <header>
       <div class="header-content">
         <div class="logo">
-          <h1>慧悦-学院</h1>
+          <h1>感统学院</h1>
         </div>
         <nav>
           <RouterLink to="/">首页</RouterLink>
           <RouterLink v-if="authStore.userRole === 'SUPER_ADMIN'" to="/admin">管理控制台</RouterLink>
-          <RouterLink v-if="authStore.userRole === 'HOSPITAL_ADMIN' || authStore.userRole === 'DOCTOR'" to="/hospital">医院端</RouterLink>
+          <RouterLink v-if="authStore.userRole === 'SUPER_ADMIN' || authStore.userRole === 'DOCTOR'" to="/hospital">医院端</RouterLink>
           <RouterLink v-if="authStore.userRole === 'PARENT'" to="/parent">家长端</RouterLink>
-          <RouterLink v-if="authStore.userRole === 'SCHOOL_ADMIN'" to="/school">校园端</RouterLink>
-          <RouterLink v-if="authStore.userRole === 'HOSPITAL_ADMIN' || authStore.userRole === 'DOCTOR'" to="/doctor/profile">我的资料</RouterLink>
+          <RouterLink v-if="authStore.userRole === 'SUPER_ADMIN' || authStore.userRole === 'PARENT' || authStore.userRole === 'SCHOOL_ADMIN'" to="/school">校园端</RouterLink>
+          <RouterLink v-if="authStore.userRole === 'SUPER_ADMIN' || authStore.userRole === 'DOCTOR'" to="/doctor/profile">我的资料</RouterLink>
         </nav>
 
         <div class="user-section">
@@ -80,7 +77,7 @@ const handleUserCommand = (command: string) => {
 
 header {
   background: #fff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -176,7 +173,7 @@ main {
   .header-content {
     padding: 1rem 1rem;
   }
-  
+
   main {
     padding: 2rem 1rem;
   }
@@ -188,16 +185,16 @@ main {
     gap: 1rem;
     padding: 1rem;
   }
-  
+
   nav {
     justify-content: center;
   }
-  
+
   nav a {
     padding: 0.5rem;
     font-size: 0.9rem;
   }
-  
+
   main {
     padding: 1rem 0.5rem;
   }

@@ -1,6 +1,15 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm'
-import { User } from '../../users/user.entity'
-import { CaseFile } from './case-file.entity'
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { User } from '../../users/user.entity';
+import { CaseFile } from './case-file.entity';
 
 export enum CaseStatus {
   UPLOADED = 'uploaded',
@@ -12,31 +21,30 @@ export enum CaseStatus {
 @Entity('case_records')
 export class CaseRecord {
   @PrimaryGeneratedColumn('increment')
-  id: number
+  id: number;
 
   @Column()
-  doctorUserId: number
+  doctorUserId: number;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'doctorUserId' })
-  doctor: User
+  doctor: User;
 
   @Column({ length: 200 })
-  title: string
+  title: string;
 
   @Column('text', { nullable: true })
-  description?: string | null
+  description?: string | null;
 
   @Column({ type: 'enum', enum: CaseStatus, default: CaseStatus.UPLOADED })
-  status: CaseStatus
+  status: CaseStatus;
 
   @OneToMany(() => CaseFile, (f) => f.caseRecord, { cascade: true })
-  files: CaseFile[]
+  files: CaseFile[];
 
   @CreateDateColumn()
-  createdAt: Date
+  createdAt: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date
+  updatedAt: Date;
 }
-

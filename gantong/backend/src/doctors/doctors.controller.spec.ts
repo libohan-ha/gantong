@@ -1,27 +1,37 @@
-import { Test, TestingModule } from '@nestjs/testing'
-import { getRepositoryToken } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
-import { HttpException, HttpStatus } from '@nestjs/common'
-
-import { DoctorsController } from './doctors.controller'
-import { DoctorProfile } from '../users/doctor-profile.entity'
-import { UpdateDoctorProfileDto } from './dto/update-doctor-profile.dto'
+﻿import {
+  BadRequestException,
+  ConflictException,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { DoctorsController } from './doctors.controller';
+import { DoctorProfile } from '../users/doctor-profile.entity';
+import { UpdateDoctorProfileDto } from './dto/update-doctor-profile.dto';
+import { Role, User } from '../users/user.entity';
 
 describe('DoctorsController', () => {
-  let controller: DoctorsController
-  let repository: Repository<DoctorProfile>
+  let controller: DoctorsController;
 
   const mockRepository = {
     findOne: jest.fn(),
     save: jest.fn(),
     create: jest.fn(),
-    query: jest.fn(),
-  }
+  };
 
-  const mockUser = {
+  const mockUserReq = {
+    user: {
+      id: 1,
+      role: Role.DOCTOR,
+    },
+  };
+
+  const mockUserEntity: User = Object.assign(new User(), {
     id: 1,
-    role: 'DOCTOR'
-  }
+    role: Role.DOCTOR,
+    enabled: true,
+    createdAt: new Date(),
+  });
 
   const mockProfile: DoctorProfile = {
     userId: 1,
@@ -30,9 +40,10 @@ describe('DoctorsController', () => {
     title: '主任医师',
     age: 45,
     phone: '13800138000',
+    avatarUrl: '/static/avatars/1/a.png',
     verified: false,
-    user: null
-  }
+    user: mockUserEntity,
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -43,113 +54,146 @@ describe('DoctorsController', () => {
           useValue: mockRepository,
         },
       ],
-    }).compile()
+    }).compile();
 
-    controller = module.get<DoctorsController>(DoctorsController)
-    repository = module.get<Repository<DoctorProfile>>(getRepositoryToken(DoctorProfile))
-  })
+    controller = module.get<DoctorsController>(DoctorsController);
+  });
 
   afterEach(() => {
-    jest.clearAllMocks()
-  })
+    jest.clearAllMocks();
+  });
 
   describe('getMyProfile', () => {
-    it('应该返回现有的医生资料', async () => {
-      mockRepository.findOne.mockResolvedValue(mockProfile)
+    it('returns existing profile', async () => {
+      mockRepository.findOne.mockResolvedValue(mockProfile);
 
-      const result = await controller.getMyProfile({ user: mockUser })
+      const result = await controller.getMyProfile(mockUserReq);
 
-      expect(result).toEqual(mockProfile)
+      expect(result).toEqual(mockProfile);
       expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { userId: mockUser.id }
-      })
-    })
+        where: { userId: 1 },
+      });
+    });
 
-    it('应该创建新的医生资料如果不存在', async () => {
-      mockRepository.findOne
-        .mockResolvedValueOnce(null) // 第一次查询返回null
-        .mockResolvedValueOnce(mockProfile) // 第二次查询返回创建的资料
-      mockRepository.query.mockResolvedValue(undefined)
+    it('creates profile when not found', async () => {
+      const createdProfile = {
+        ...mockProfile,
+        name: '',
+        hospital: '',
+        verified: false,
+      };
+      mockRepository.findOne.mockResolvedValueOnce(null);
+      mockRepository.create.mockReturnValue(createdProfile);
+      mockRepository.save.mockResolvedValue(createdProfile);
 
-      const result = await controller.getMyProfile({ user: mockUser })
+      const result = await controller.getMyProfile(mockUserReq);
 
-      expect(result).toEqual(mockProfile)
-      expect(mockRepository.query).toHaveBeenCalled()
-      expect(mockRepository.findOne).toHaveBeenCalledTimes(2)
-    })
-  })
+      expect(result).toEqual(createdProfile);
+      expect(mockRepository.create).toHaveBeenCalled();
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+
+    it('throws internal server error on unknown exception', async () => {
+      mockRepository.findOne.mockRejectedValue(new Error('db error'));
+
+      await expect(controller.getMyProfile(mockUserReq)).rejects.toBeInstanceOf(
+        InternalServerErrorException,
+      );
+    });
+  });
 
   describe('updateMyProfile', () => {
     const updateDto: UpdateDoctorProfileDto = {
       name: '李医生',
-      hospital: '上海儿童医院'
-    }
+      hospital: '上海儿童医院',
+    };
 
-    it('应该更新现有的医生资料', async () => {
-      const updatedProfile = { ...mockProfile, ...updateDto }
-      mockRepository.findOne.mockResolvedValue(mockProfile)
-      mockRepository.save.mockResolvedValue(updatedProfile)
+    it('updates existing profile', async () => {
+      const updatedProfile = { ...mockProfile, ...updateDto };
+      mockRepository.findOne.mockResolvedValue(mockProfile);
+      mockRepository.save.mockResolvedValue(updatedProfile);
 
-      const result = await controller.updateMyProfile({ user: mockUser }, updateDto)
+      const result = await controller.updateMyProfile(mockUserReq, updateDto);
 
-      expect(result).toEqual(updatedProfile)
-      expect(mockRepository.save).toHaveBeenCalled()
-    })
+      expect(result).toEqual(updatedProfile);
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
 
-    it('应该创建新资料如果不存在', async () => {
-      const updatedProfile = { ...mockProfile, ...updateDto }
-      mockRepository.findOne
-        .mockResolvedValueOnce(null) // 第一次查询返回null
-        .mockResolvedValueOnce(updatedProfile) // 第二次查询返回创建的资料
-      mockRepository.query.mockResolvedValue(undefined)
-      mockRepository.save.mockResolvedValue(updatedProfile)
+    it('throws conflict exception on duplicate phone', async () => {
+      mockRepository.findOne.mockResolvedValue(mockProfile);
+      mockRepository.save.mockRejectedValue({ code: '23505' });
 
-      const result = await controller.updateMyProfile({ user: mockUser }, updateDto)
+      await expect(
+        controller.updateMyProfile(mockUserReq, { phone: '13800138000' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
 
-      expect(result).toEqual(updatedProfile)
-      expect(mockRepository.query).toHaveBeenCalled()
-      expect(mockRepository.save).toHaveBeenCalled()
-    })
-  })
+  describe('uploadMyAvatar', () => {
+    it('updates avatar url and returns it', async () => {
+      const profile = { ...mockProfile, avatarUrl: undefined };
+      mockRepository.findOne.mockResolvedValue(profile);
+      mockRepository.save.mockImplementation((p: DoctorProfile) =>
+        Promise.resolve(p),
+      );
+
+      const file = {
+        path: 'uploads\\avatars\\1\\avatar.png',
+        filename: 'avatar.png',
+      } as Express.Multer.File;
+
+      const result = await controller.uploadMyAvatar(mockUserReq, file);
+
+      expect(result).toEqual({ avatarUrl: '/static/avatars/1/avatar.png' });
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+
+    it('throws when file is missing', async () => {
+      await expect(
+        controller.uploadMyAvatar(
+          mockUserReq,
+          undefined as unknown as Express.Multer.File,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
 
   describe('getMyStats', () => {
-    it('应该返回医生统计信息', async () => {
-      mockRepository.findOne.mockResolvedValue(mockProfile)
+    it('returns doctor stats with profile completeness', async () => {
+      mockRepository.findOne.mockResolvedValue(mockProfile);
 
-      const result = await controller.getMyStats({ user: mockUser })
+      const result = await controller.getMyStats(mockUserReq);
 
-      expect(result).toHaveProperty('videoCount')
-      expect(result).toHaveProperty('totalViews')
-      expect(result).toHaveProperty('totalLikes')
-      expect(result).toHaveProperty('profileCompleteness')
-      expect(result.profileCompleteness).toBe(100)
-    })
+      expect(result).toHaveProperty('videoCount');
+      expect(result).toHaveProperty('totalViews');
+      expect(result).toHaveProperty('totalLikes');
+      expect(result).toHaveProperty('profileCompleteness');
+      expect(result.profileCompleteness).toBe(100);
+    });
 
-    it('应该计算正确的资料完整度', async () => {
-      const incompleteProfile = { ...mockProfile, name: '', age: null }
-      mockRepository.findOne.mockResolvedValue(incompleteProfile)
+    it('returns 0 completeness if no profile', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
 
-      const result = await controller.getMyStats({ user: mockUser })
+      const result = await controller.getMyStats(mockUserReq);
 
-      expect(result.profileCompleteness).toBeLessThan(100)
-    })
-  })
+      expect(result.profileCompleteness).toBe(0);
+    });
+  });
 
   describe('calculateProfileCompleteness', () => {
-    it('应该为空资料返回0', () => {
-      const result = controller['calculateProfileCompleteness'](null)
-      expect(result).toBe(0)
-    })
+    it('returns 100 for complete profile', () => {
+      const result = controller['calculateProfileCompleteness'](mockProfile);
+      expect(result).toBe(100);
+    });
 
-    it('应该为完整资料返回100', () => {
-      const result = controller['calculateProfileCompleteness'](mockProfile)
-      expect(result).toBe(100)
-    })
-
-    it('应该为部分完整资料返回正确百分比', () => {
-      const partialProfile = { ...mockProfile, name: '', age: null }
-      const result = controller['calculateProfileCompleteness'](partialProfile)
-      expect(result).toBe(60) // 3 out of 5 fields filled
-    })
-  })
-})
+    it('returns expected value for partial profile', () => {
+      const partialProfile: DoctorProfile = {
+        ...mockProfile,
+        name: '',
+        age: undefined,
+      };
+      const result = controller['calculateProfileCompleteness'](partialProfile);
+      expect(result).toBe(60);
+    });
+  });
+});

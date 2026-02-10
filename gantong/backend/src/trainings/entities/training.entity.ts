@@ -1,50 +1,58 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm'
-import { User } from '../../users/user.entity'
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { User } from '../../users/user.entity';
 
 export enum TrainingType {
   ONLINE = 'online',
   OFFLINE = 'offline',
-  HYBRID = 'hybrid'
+  HYBRID = 'hybrid',
 }
 
 @Entity('trainings')
 export class Training {
   @PrimaryGeneratedColumn()
-  id: number
+  id: number;
 
   @Column({ name: 'doctor_user_id' })
-  doctorUserId: number
+  doctorUserId: number;
 
   @Column({ length: 200 })
-  title: string
+  title: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string | null
+  description: string | null;
 
-  @Column({ 
-    type: 'enum', 
+  @Column({
+    type: 'enum',
     enum: TrainingType,
-    name: 'type'
+    name: 'type',
   })
-  type: TrainingType
+  type: TrainingType;
 
   @Column({ name: 'duration_hours' })
-  durationHours: number
+  durationHours: number;
 
   @Column({ name: 'max_participants' })
-  maxParticipants: number
+  maxParticipants: number;
 
   @Column({ name: 'start_date', type: 'timestamptz' })
-  startDate: Date
+  startDate: Date;
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date
+  createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date
+  updatedAt: Date;
 
   // 关联创建者（医生）
   @ManyToOne(() => User)
   @JoinColumn({ name: 'doctor_user_id' })
-  doctor?: User
+  doctor?: User;
 }
