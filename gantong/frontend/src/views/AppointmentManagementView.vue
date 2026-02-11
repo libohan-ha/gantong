@@ -107,7 +107,7 @@ const loadAppointments = async () => {
     preferredTime: it.preferredTime,
     symptoms: it.symptoms,
     previousTreatment: it.previousTreatment,
-    expertName: it.doctorName || '',
+    expertName: it.doctorName || '', // 字段名转换：后端叫 doctorName，前端展示叫 expertName
     expertHospital: it.doctorHospital || '',
     status: (it.status || 'pending'),
     submitTime: it.createdAt,

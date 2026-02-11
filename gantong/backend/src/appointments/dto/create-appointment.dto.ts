@@ -30,7 +30,9 @@ export class CreateAppointmentDto {
   parentName: string;
 
   @IsString()
-  @Matches(/^1[3-9]\d{9}$/)
+  @Matches(/^1[3-9]\d{9}$/, {
+    message: 'parentPhone 必须为 11 位中国大陆手机号（例如 13800138000）',
+  })
   parentPhone: string;
 
   @IsOptional()

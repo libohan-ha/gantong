@@ -26,14 +26,38 @@ const error = ref('')
 type ApiError = {
   response?: {
     data?: {
-      message?: string
+      message?: string | string[]
     }
   }
 }
 
 const getErrorMessage = (e: unknown, fallback: string) => {
   const message = (e as ApiError)?.response?.data?.message
+  if (Array.isArray(message)) {
+    return message.join('；')
+  }
   return typeof message === 'string' && message.trim() ? message : fallback
+}
+
+const mobilePhoneRegex = /^1[3-9]\d{9}$/
+
+const validateBookingForm = (): string | null => {
+  const childName = bookingForm.value.childName.trim()
+  const childAge = Number(bookingForm.value.childAge)
+  const childGender = bookingForm.value.childGender.trim()
+  const parentName = bookingForm.value.parentName.trim()
+  const parentPhone = bookingForm.value.parentPhone.trim()
+  const preferredDate = bookingForm.value.preferredDate.trim()
+  const preferredTime = bookingForm.value.preferredTime.trim()
+
+  if (!childName) return '请填写儿童姓名'
+  if (!Number.isInteger(childAge) || childAge < 0 || childAge > 18) return '儿童年龄需为 0-18 的整数'
+  if (!childGender) return '请选择儿童性别'
+  if (!parentName) return '请填写家长姓名'
+  if (!mobilePhoneRegex.test(parentPhone)) return '联系电话需为 11 位中国大陆手机号（例如 13800138000）'
+  if (!preferredDate) return '请选择预约日期'
+  if (!preferredTime) return '请选择预约时间'
+  return null
 }
 
 const loadExperts = async () => {
@@ -153,14 +177,21 @@ const closeBookingForm = () => {
 // 提交预约（落库）
 const submitBooking = async () => {
   if (!selectedExpert.value) return
+
+  const validationError = validateBookingForm()
+  if (validationError) {
+    alert(validationError)
+    return
+  }
+
   try {
     await createDoctorAppointment({
       doctorId: selectedExpert.value.id,
-      childName: bookingForm.value.childName,
+      childName: bookingForm.value.childName.trim(),
       childAge: Number(bookingForm.value.childAge),
-      childGender: bookingForm.value.childGender,
-      parentName: bookingForm.value.parentName,
-      parentPhone: bookingForm.value.parentPhone,
+      childGender: bookingForm.value.childGender.trim(),
+      parentName: bookingForm.value.parentName.trim(),
+      parentPhone: bookingForm.value.parentPhone.trim(),
       preferredDate: bookingForm.value.preferredDate || undefined,
       preferredTime: bookingForm.value.preferredTime || undefined,
       symptoms: bookingForm.value.symptoms || undefined,
