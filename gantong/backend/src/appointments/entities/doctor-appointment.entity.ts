@@ -9,7 +9,8 @@ export type AppointmentStatus =
   | 'pending'
   | 'confirmed'
   | 'rejected'
-  | 'completed';
+  | 'completed'
+  | 'cancelled';
 
 @Entity('doctor_appointments')
 export class DoctorAppointment {

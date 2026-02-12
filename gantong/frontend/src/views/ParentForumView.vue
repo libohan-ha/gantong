@@ -294,56 +294,72 @@ onMounted(async () => {
 
 <template>
   <div class="forum-container">
-    <header class="page-header">
-      <h1>家长论坛</h1>
-      <p class="header-desc">分享经验，互相支持，共同为孩子的成长加油</p>
-    </header>
-
-    <section class="statistics-bar">
-      <article class="stat-card">
-        <span class="stat-label">帖子总数</span>
-        <span class="stat-value">{{ statistics.postCount }}</span>
-      </article>
-      <article class="stat-card">
-        <span class="stat-label">回复总数</span>
-        <span class="stat-value">{{ statistics.replyCount }}</span>
-      </article>
-      <article class="stat-card">
-        <span class="stat-label">活跃用户</span>
-        <span class="stat-value">{{ statistics.activeUsers }}</span>
-      </article>
-      <article class="stat-card">
-        <span class="stat-label">今日新帖</span>
-        <span class="stat-value">{{ statistics.todayPosts }}</span>
-      </article>
+    <!-- Hero Header -->
+    <section class="hero-header">
+      <div class="hero-inner">
+        <span class="hero-badge">家长社区</span>
+        <h1>家长论坛</h1>
+        <p>分享经验，互相支持，共同为孩子的成长加油</p>
+        <div class="deco-circle c1"></div>
+        <div class="deco-circle c2"></div>
+        <div class="deco-circle c3"></div>
+      </div>
     </section>
 
-    <div class="action-bar">
-      <button class="primary-btn" @click="showCreateForm = true">✏️ 发布新帖</button>
+    <!-- Stats Strip -->
+    <section class="stat-strip">
+      <div class="stat-chip">
+        <span class="chip-num">{{ statistics.postCount }}</span>
+        <span class="chip-label">帖子总数</span>
+      </div>
+      <div class="stat-chip">
+        <span class="chip-num">{{ statistics.replyCount }}</span>
+        <span class="chip-label">回复总数</span>
+      </div>
+      <div class="stat-chip">
+        <span class="chip-num">{{ statistics.activeUsers }}</span>
+        <span class="chip-label">活跃用户</span>
+      </div>
+      <div class="stat-chip">
+        <span class="chip-num">{{ statistics.todayPosts }}</span>
+        <span class="chip-label">今日新帖</span>
+      </div>
+    </section>
+
+    <!-- Action + Filters -->
+    <div class="toolbar-row">
+      <div class="search-card">
+        <input
+          v-model="searchKeyword"
+          type="text"
+          placeholder="搜索帖子标题、内容或标签..."
+          class="search-input"
+        >
+        <select v-model="filterCategory" class="filter-select">
+          <option
+            v-for="category in categoryOptions"
+            :key="category"
+            :value="category"
+          >
+            {{ category }}
+          </option>
+        </select>
+      </div>
+      <button class="create-btn" @click="showCreateForm = true">✏️ 发布新帖</button>
     </div>
 
-    <section class="filters-bar">
-      <input
-        v-model="searchKeyword"
-        type="text"
-        placeholder="搜索帖子标题、内容或标签..."
-      >
-      <select v-model="filterCategory">
-        <option
-          v-for="category in categoryOptions"
-          :key="category"
-          :value="category"
-        >
-          {{ category }}
-        </option>
-      </select>
-    </section>
-
+    <!-- Post List -->
     <section class="posts-section">
+      <div class="section-title">
+        <h2>帖子列表</h2>
+        <span class="section-line"></span>
+      </div>
+
       <div v-if="loading" class="empty-state">正在加载帖子，请稍候...</div>
       <div v-else-if="filteredPosts.length === 0" class="empty-state">
         暂时没有帖子，试试发布第一篇吧？
       </div>
+
       <div v-else class="post-list">
         <article
           v-for="post in filteredPosts"
@@ -355,57 +371,66 @@ onMounted(async () => {
             <div class="author-info">
               <div class="author-avatar">{{ post.authorName.charAt(0) }}</div>
               <div class="author-details">
-                <div class="author-name">{{ post.authorName }}</div>
-                <div class="author-meta">{{ formatDateTime(post.createdAt) }}</div>
+                <span class="author-name">{{ post.authorName }}</span>
+                <span class="author-meta">{{ formatDateTime(post.createdAt) }}</span>
               </div>
             </div>
             <span class="category-tag">{{ post.category ?? '未分类' }}</span>
           </header>
+
           <h3 class="post-title">{{ post.title }}</h3>
           <p class="post-preview">{{ post.content }}</p>
+
           <div v-if="post.tags.length" class="post-tags">
             <span class="tag" v-for="tag in post.tags" :key="tag">#{{ tag }}</span>
           </div>
+
+          <div class="card-footer">
+            <span class="enter-link">查看详情</span>
+            <span class="enter-arrow">→</span>
+          </div>
+          <div class="card-bottom-bar"></div>
         </article>
       </div>
     </section>
 
+    <!-- Create Post Modal -->
     <div v-if="showCreateForm" class="modal-overlay" @click="showCreateForm = false">
-      <div class="modal" @click.stop>
+      <div class="modal-panel" @click.stop>
         <header class="modal-header">
           <h2>发布新帖子</h2>
           <button class="close-btn" @click="showCreateForm = false">×</button>
         </header>
 
-        <form class="form" @submit.prevent="createPost">
-          <label>
-            帖子标题 *
+        <form class="form-body" @submit.prevent="createPost">
+          <div class="form-group">
+            <label>帖子标题 *</label>
             <input v-model="newPost.title" type="text" required placeholder="请输入帖子标题">
-          </label>
+          </div>
 
-          <label>
-            分类（可选）
+          <div class="form-group">
+            <label>分类（可选）</label>
             <select v-model="newPost.category">
               <option value="">不选择分类</option>
               <option v-for="category in categories" :key="category.id" :value="category.name">
                 {{ category.name }}
               </option>
             </select>
-          </label>
+          </div>
 
-          <label>
-            内容 *
+          <div class="form-group">
+            <label>内容 *</label>
             <textarea
               v-model="newPost.content"
               rows="6"
               required
               placeholder="分享您的经历、困惑或建议..."
             />
-          </label>
+          </div>
 
-          <label>
-            标签（可选，最多 5 个）
-            <div class="tags-input">
+          <div class="form-group">
+            <label>标签（可选，最多 5 个）</label>
+            <div class="tags-input-wrap">
               <div class="selected-tags">
                 <span class="tag-item" v-for="tag in newPost.tags" :key="tag">
                   #{{ tag }}
@@ -418,22 +443,23 @@ onMounted(async () => {
                 @keyup.enter.prevent="addTag($event)"
               >
             </div>
-          </label>
+          </div>
 
           <footer class="form-actions">
-            <button type="button" class="secondary-btn" @click="showCreateForm = false">取消</button>
-            <button type="submit" class="primary-btn">发布帖子</button>
+            <button type="button" class="cancel-btn" @click="showCreateForm = false">取消</button>
+            <button type="submit" class="submit-btn">发布帖子</button>
           </footer>
         </form>
       </div>
     </div>
 
+    <!-- Post Detail Modal -->
     <div
       v-if="showPostDetail && selectedPost"
       class="modal-overlay"
       @click="closePostDetail"
     >
-      <div class="modal large" @click.stop>
+      <div class="modal-panel large" @click.stop>
         <header class="modal-header">
           <h2>帖子详情</h2>
           <button class="close-btn" @click="closePostDetail">×</button>
@@ -442,10 +468,10 @@ onMounted(async () => {
         <article class="post-detail" v-if="selectedPost">
           <header class="post-detail-header">
             <div class="author-info">
-              <div class="author-avatar large">{{ selectedPost.authorName.charAt(0) }}</div>
+              <div class="author-avatar lg">{{ selectedPost.authorName.charAt(0) }}</div>
               <div class="author-details">
-                <div class="author-name">{{ selectedPost.authorName }}</div>
-                <div class="author-meta">{{ formatDateTime(selectedPost.createdAt) }}</div>
+                <span class="author-name">{{ selectedPost.authorName }}</span>
+                <span class="author-meta">{{ formatDateTime(selectedPost.createdAt) }}</span>
               </div>
             </div>
             <span class="category-tag">{{ selectedPost.category ?? '未分类' }}</span>
@@ -460,38 +486,39 @@ onMounted(async () => {
         </article>
 
         <section class="replies-section">
-          <header class="section-header">
-            <h3>回复（{{ replies.length }}）</h3>
-          </header>
+          <div class="section-title">
+            <h2>回复（{{ replies.length }}）</h2>
+            <span class="section-line"></span>
+          </div>
 
-          <div v-if="replies.length === 0" class="empty-state">
+          <div v-if="replies.length === 0" class="empty-state small">
             还没有回复，来发表第一个回复吧
           </div>
 
           <div v-else class="replies-list">
             <article class="reply-card" v-for="reply in replies" :key="reply.id">
               <div class="author-info">
-                <div class="author-avatar small">{{ reply.authorName.charAt(0) }}</div>
+                <div class="author-avatar sm">{{ reply.authorName.charAt(0) }}</div>
                 <div class="author-details">
-                  <div class="author-name">{{ reply.authorName }}</div>
-                  <div class="author-meta">{{ formatDateTime(reply.createdAt) }}</div>
+                  <span class="author-name">{{ reply.authorName }}</span>
+                  <span class="author-meta">{{ formatDateTime(reply.createdAt) }}</span>
                 </div>
               </div>
               <div class="reply-content">{{ reply.content }}</div>
             </article>
           </div>
 
-          <form class="form" @submit.prevent="createReply">
-            <label>
-              发布回复
+          <form class="reply-form" @submit.prevent="createReply">
+            <div class="form-group">
+              <label>发布回复</label>
               <textarea
                 v-model="newReply.content"
                 rows="4"
                 placeholder="写下您的看法或经验..."
               />
-            </label>
-            <footer class="form-actions right">
-              <button type="submit" class="primary-btn">发布回复</button>
+            </div>
+            <footer class="form-actions">
+              <button type="submit" class="submit-btn">发布回复</button>
             </footer>
           </form>
         </section>
@@ -501,135 +528,200 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* ── Layout ── */
 .forum-container {
   max-width: 960px;
   margin: 0 auto;
   padding: 2rem 1.5rem 3rem;
-  color: #1f2937;
-  font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', 'Helvetica Neue', sans-serif;
 }
 
-.page-header {
-  text-align: center;
-  margin-bottom: 2rem;
+/* ── Hero Header ── */
+.hero-header {
+  margin-bottom: 1.75rem;
 }
 
-.page-header h1 {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: 0.75rem;
+.hero-inner {
+  position: relative;
+  background: linear-gradient(160deg, #1e293b 0%, #334155 55%, #3b4a63 100%);
+  border-radius: 18px;
+  padding: 2.5rem 2.5rem 2.2rem;
+  color: #fff;
+  overflow: hidden;
 }
 
-.header-desc {
-  color: #6b7280;
-  font-size: 1rem;
+.hero-badge {
+  display: inline-block;
+  background: rgba(245, 158, 66, 0.18);
+  color: #fbbf24;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.25rem 0.85rem;
+  border-radius: 999px;
+  margin-bottom: 0.85rem;
+  letter-spacing: 0.5px;
 }
 
-.statistics-bar {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.hero-inner h1 {
+  font-size: 1.75rem;
+  font-weight: 750;
+  margin: 0 0 0.5rem;
+  line-height: 1.3;
+}
+
+.hero-inner p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.deco-circle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.07;
+}
+
+.c1 { width: 180px; height: 180px; background: #f59e42; top: -60px; right: -30px; }
+.c2 { width: 120px; height: 120px; background: #fbbf24; bottom: -40px; right: 100px; }
+.c3 { width: 80px; height: 80px; background: #fb923c; top: 10px; right: 180px; }
+
+/* ── Stat Strip ── */
+.stat-strip {
+  display: flex;
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
-.stat-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem 1rem;
-  text-align: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
-}
-
-.stat-label {
-  display: block;
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
-}
-
-.stat-value {
-  display: block;
-  color: #1f2937;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.action-bar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1.5rem;
-}
-
-.primary-btn {
-  background: #3b82f6;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.primary-btn:hover {
-  background: #2563eb;
-}
-
-.secondary-btn {
-  background: #6b7280;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.secondary-btn:hover {
-  background: #4b5563;
-}
-
-.filters-bar {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  align-items: center;
-}
-
-.filters-bar input {
+.stat-chip {
   flex: 1;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1.15rem;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 13px;
 }
 
-.filters-bar select {
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: white;
-  font-size: 1rem;
-  min-width: 120px;
+.chip-num {
+  font-size: 1.35rem;
+  font-weight: 750;
+  color: #1e293b;
+  line-height: 1;
 }
 
-.posts-section {
-  margin-bottom: 2rem;
+.chip-label {
+  font-size: 0.82rem;
+  color: #64748b;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 3rem 2rem;
-  color: #6b7280;
-  background: white;
+/* ── Toolbar ── */
+.toolbar-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.75rem;
+}
+
+.search-card {
+  flex: 1;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 14px;
+  padding: 0.65rem 1rem;
+}
+
+.search-input {
+  flex: 1;
+  padding: 0.6rem 0.85rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  background: #f8fafc;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #f59e42;
+  background: #fff;
+}
+
+.filter-select {
+  padding: 0.6rem 0.85rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.92rem;
+  cursor: pointer;
+  min-width: 110px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #f59e42;
+}
+
+.create-btn {
+  background: linear-gradient(135deg, #f59e42 0%, #f97316 100%);
+  color: #fff;
+  border: none;
+  padding: 0.7rem 1.35rem;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
 }
 
+.create-btn:hover {
+  box-shadow: 0 4px 14px rgba(245, 158, 66, 0.35);
+  transform: translateY(-1px);
+}
+
+/* ── Section Title ── */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.15rem;
+}
+
+.section-title h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.section-line {
+  flex: 1;
+  height: 1px;
+  background: #e8eaef;
+}
+
+/* ── Empty / Loading ── */
+.empty-state {
+  background: #f8fafc;
+  border: 1.5px dashed #d7dee7;
+  border-radius: 16px;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+.empty-state.small {
+  padding: 1.5rem;
+}
+
+/* ── Post List ── */
 .post-list {
   display: flex;
   flex-direction: column;
@@ -637,95 +729,103 @@ onMounted(async () => {
 }
 
 .post-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  border: 1px solid #e5e7eb;
+  position: relative;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
+  padding: 1.4rem 1.4rem 1.15rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
 
 .post-card:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  border-color: #3b82f6;
-  transform: translateY(-1px);
+  border-color: transparent;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  transform: translateY(-3px);
 }
 
 .post-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  margin-bottom: 0.85rem;
 }
 
 .author-info {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
 }
 
 .author-avatar {
-  width: 40px;
-  height: 40px;
-  background: #3b82f6;
-  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, #f59e42 0%, #f97316 100%);
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 600;
-  font-size: 1rem;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex-shrink: 0;
 }
 
-.author-avatar.large {
-  width: 50px;
-  height: 50px;
-  font-size: 1.25rem;
+.author-avatar.lg {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  font-size: 1.15rem;
 }
 
-.author-avatar.small {
+.author-avatar.sm {
   width: 32px;
   height: 32px;
-  font-size: 0.875rem;
+  border-radius: 9px;
+  font-size: 0.82rem;
 }
 
 .author-details {
   display: flex;
   flex-direction: column;
+  gap: 0.1rem;
 }
 
 .author-name {
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 0.25rem;
+  font-weight: 650;
+  color: #1e293b;
+  font-size: 0.9rem;
 }
 
 .author-meta {
-  color: #6b7280;
-  font-size: 0.875rem;
+  color: #94a3b8;
+  font-size: 0.78rem;
 }
 
 .category-tag {
-  background: #eff6ff;
-  color: #1d4ed8;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  background: rgba(245, 158, 66, 0.1);
+  color: #d97706;
+  padding: 0.22rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .post-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.5rem;
   line-height: 1.4;
 }
 
 .post-preview {
-  color: #4b5563;
-  line-height: 1.6;
-  margin-bottom: 1rem;
+  color: #64748b;
+  line-height: 1.65;
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
   display: -webkit-box;
   line-clamp: 3;
   -webkit-line-clamp: 3;
@@ -736,258 +836,362 @@ onMounted(async () => {
 .post-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
 }
 
 .tag {
-  background: #f3f4f6;
-  color: #374151;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  background: #fff7ed;
+  color: #c2410c;
+  padding: 0.2rem 0.55rem;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 
-.modal-overlay {
-  position: fixed;
-  top: 0;
+.card-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: all 0.25s ease;
+}
+
+.post-card:hover .card-footer {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.enter-link {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f59e42;
+}
+
+.enter-arrow {
+  color: #f59e42;
+  font-size: 0.82rem;
+}
+
+.card-bottom-bar {
+  position: absolute;
+  bottom: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  height: 3px;
+  background: #f59e42;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.post-card:hover .card-bottom-bar {
+  opacity: 1;
+}
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
+  padding: 1.5rem;
 }
 
-.modal {
-  background: white;
-  border-radius: 12px;
+.modal-panel {
+  background: #fff;
+  border-radius: 16px;
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
 }
 
-.modal.large {
-  max-width: 800px;
+.modal-panel.large {
+  max-width: 780px;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .modal-header h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .close-btn {
-  background: none;
+  background: #f1f5f9;
   border: none;
-  font-size: 1.5rem;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0;
   width: 32px;
   height: 32px;
+  border-radius: 10px;
+  font-size: 1.3rem;
+  color: #64748b;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s;
 }
 
 .close-btn:hover {
-  color: #374151;
+  background: #e2e8f0;
+  color: #1e293b;
 }
 
-.form {
+/* ── Form ── */
+.form-body {
   padding: 1.5rem;
 }
 
-.form label {
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
   display: block;
-  margin-bottom: 1.5rem;
-  font-weight: 500;
-  color: #374151;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+  color: #475569;
+  font-size: 0.88rem;
 }
 
-.form input,
-.form select,
-.form textarea {
+.form-body input,
+.form-body select,
+.form-body textarea,
+.reply-form input,
+.reply-form textarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 1rem;
-  margin-top: 0.5rem;
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background: #f8fafc;
+  transition: all 0.2s;
 }
 
-.form input:focus,
-.form select:focus,
-.form textarea:focus {
+.form-body input:focus,
+.form-body select:focus,
+.form-body textarea:focus,
+.reply-form textarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #f59e42;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(245, 158, 66, 0.1);
 }
 
-.form textarea {
+.form-body textarea,
+.reply-form textarea {
   resize: vertical;
-  min-height: 120px;
+  min-height: 100px;
 }
 
-.tags-input {
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 0.75rem;
-  margin-top: 0.5rem;
+.tags-input-wrap {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  background: #f8fafc;
+  transition: border-color 0.2s;
+}
+
+.tags-input-wrap:focus-within {
+  border-color: #f59e42;
+  background: #fff;
 }
 
 .selected-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
 }
 
 .tag-item {
-  background: #eff6ff;
-  color: #1d4ed8;
-  padding: 0.375rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
+  background: #fff7ed;
+  color: #c2410c;
+  padding: 0.3rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .tag-item button {
   background: none;
   border: none;
-  color: #6b7280;
+  color: #94a3b8;
   cursor: pointer;
   padding: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  line-height: 1;
 }
 
 .tag-item button:hover {
-  color: #374151;
+  color: #dc2626;
 }
 
-.tags-input input {
+.tags-input-wrap input {
   border: none;
-  padding: 0.25rem 0;
-  margin-top: 0;
+  padding: 0.3rem 0;
+  background: transparent;
+  font-size: 0.9rem;
 }
 
-.tags-input input:focus {
+.tags-input-wrap input:focus {
   border: none;
   box-shadow: none;
 }
 
 .form-actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   justify-content: flex-end;
-  margin-top: 2rem;
+  margin-top: 1.5rem;
 }
 
-.form-actions.right {
-  justify-content: flex-end;
+.cancel-btn,
+.submit-btn {
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
+.cancel-btn {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.cancel-btn:hover {
+  background: #e2e8f0;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #f59e42 0%, #f97316 100%);
+  color: #fff;
+}
+
+.submit-btn:hover {
+  box-shadow: 0 4px 14px rgba(245, 158, 66, 0.35);
+}
+
+/* ── Post Detail ── */
 .post-detail {
   padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .post-detail-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .post-detail-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 1rem;
+  font-size: 1.4rem;
+  font-weight: 750;
+  color: #1e293b;
+  margin: 0 0 1rem;
   line-height: 1.4;
 }
 
 .post-detail-content {
-  color: #374151;
-  line-height: 1.7;
+  color: #475569;
+  line-height: 1.75;
   white-space: pre-wrap;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.95rem;
 }
 
 .post-detail-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
+/* ── Replies ── */
 .replies-section {
   padding: 1.5rem;
-}
-
-.section-header {
-  margin-bottom: 1.5rem;
-}
-
-.section-header h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
 }
 
 .replies-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 0.85rem;
+  margin-bottom: 1.75rem;
 }
 
 .reply-card {
-  background: #f9fafb;
-  border-radius: 8px;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 1rem 1.15rem;
+  border: 1px solid #eef0f4;
 }
 
 .reply-content {
-  color: #374151;
-  line-height: 1.6;
-  margin-top: 0.75rem;
+  color: #475569;
+  line-height: 1.65;
+  margin-top: 0.65rem;
+  font-size: 0.92rem;
 }
 
+.reply-form {
+  padding-top: 0.5rem;
+}
+
+.reply-form .form-group {
+  margin-bottom: 0;
+}
+
+/* ── Responsive ── */
 @media (max-width: 768px) {
   .forum-container {
     padding: 1rem 1rem 2rem;
   }
 
-  .page-header h1 {
-    font-size: 2rem;
+  .hero-inner {
+    padding: 1.75rem 1.5rem;
   }
 
-  .statistics-bar {
+  .hero-inner h1 {
+    font-size: 1.35rem;
+  }
+
+  .stat-strip {
+    display: grid;
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
   }
 
-  .filters-bar {
+  .toolbar-row {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .modal {
-    margin: 1rem;
+  .search-card {
+    flex-direction: column;
+  }
+
+  .modal-panel {
+    margin: 0.5rem;
   }
 
   .form-actions {
@@ -996,8 +1200,7 @@ onMounted(async () => {
 
   .post-detail-header {
     flex-direction: column;
-    gap: 1rem;
-    align-items: flex-start;
+    gap: 0.75rem;
   }
 }
 </style>

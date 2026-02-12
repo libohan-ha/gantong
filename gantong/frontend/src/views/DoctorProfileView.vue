@@ -1,117 +1,146 @@
-﻿<template>
+<template>
   <div class="doctor-profile-container">
-    <div class="page-header">
-      <h1>医生资料</h1>
-      <p class="header-desc">完善个人资料，提升专业形象</p>
+    <!-- 页头 -->
+    <div class="page-hero">
+      <div class="hero-deco">
+        <div class="deco-circle c1"></div>
+        <div class="deco-circle c2"></div>
+      </div>
+      <div class="hero-inner">
+        <span class="hero-badge">个人资料</span>
+        <h1>医生工作台</h1>
+        <p>完善个人资料，提升专业形象</p>
+      </div>
     </div>
 
-    <div class="profile-card" v-loading="loading">
-      <div class="card-header">
-        <div class="avatar-section">
-          <div class="avatar">
-            <img
-              v-if="doctorProfile?.avatarUrl"
-              :src="resolveAvatarUrl(doctorProfile.avatarUrl)"
-              alt="doctor-avatar"
+    <div class="content-grid">
+      <!-- 左列：头像 + 统计 -->
+      <aside class="aside-col">
+        <!-- 头像卡片 -->
+        <div class="card avatar-card" v-loading="loading">
+          <div class="avatar-wrap">
+            <div class="avatar">
+              <img
+                v-if="doctorProfile?.avatarUrl"
+                :src="resolveAvatarUrl(doctorProfile.avatarUrl)"
+                alt="doctor-avatar"
+              />
+              <span v-else class="avatar-letter">{{ doctorProfile?.name?.charAt(0) || '医' }}</span>
+            </div>
+            <input
+              ref="avatarInputRef"
+              class="avatar-input"
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              @change="handleAvatarChange"
             />
-            <span v-else>{{ doctorProfile?.name?.charAt(0) || '医' }}</span>
-          </div>
-
-          <input
-            ref="avatarInputRef"
-            class="avatar-input"
-            type="file"
-            accept="image/png,image/jpeg,image/jpg,image/webp"
-            @change="handleAvatarChange"
-          />
-
-          <div class="upload-avatar">
-            <el-button size="small" text :loading="avatarUploading" @click="triggerAvatarUpload">
+            <el-button size="small" text :loading="avatarUploading" @click="triggerAvatarUpload" class="upload-btn">
               更换头像
             </el-button>
           </div>
-        </div>
 
-        <div class="status-badge" :class="{ verified: doctorProfile?.verified }">
-          {{ doctorProfile?.verified ? '已认证' : '未认证' }}
-        </div>
-      </div>
-
-      <el-form
-        ref="profileFormRef"
-        :model="profileForm"
-        :rules="profileRules"
-        label-width="100px"
-        class="profile-form"
-      >
-        <div class="form-section">
-          <h3>基本信息</h3>
-
-          <div class="form-row">
-            <el-form-item label="姓名" prop="name" class="form-item">
-              <el-input v-model="profileForm.name" placeholder="请输入真实姓名" />
-            </el-form-item>
-
-            <el-form-item label="年龄" prop="age" class="form-item">
-              <el-input-number
-                v-model="profileForm.age"
-                :min="18"
-                :max="100"
-                placeholder="年龄"
-                style="width: 100%"
-              />
-            </el-form-item>
+          <div class="avatar-info">
+            <h3>{{ doctorProfile?.name || '未填写姓名' }}</h3>
+            <span class="title-tag" v-if="doctorProfile?.title">{{ doctorProfile.title }}</span>
+            <span class="hospital-text" v-if="doctorProfile?.hospital">{{ doctorProfile.hospital }}</span>
           </div>
 
-          <div class="form-row">
-            <el-form-item label="职称" prop="title" class="form-item">
-              <el-select v-model="profileForm.title" placeholder="请选择职称" style="width: 100%">
-                <el-option label="主任医师" value="主任医师" />
-                <el-option label="副主任医师" value="副主任医师" />
-                <el-option label="主治医师" value="主治医师" />
-                <el-option label="住院医师" value="住院医师" />
-                <el-option label="主任护师" value="主任护师" />
-                <el-option label="副主任护师" value="副主任护师" />
-                <el-option label="主管护师" value="主管护师" />
-                <el-option label="护师" value="护师" />
-              </el-select>
-            </el-form-item>
-
-            <el-form-item label="联系方式" prop="phone" class="form-item">
-              <el-input v-model="profileForm.phone" placeholder="手机号码" />
-            </el-form-item>
+          <div class="status-chip" :class="{ verified: doctorProfile?.verified }">
+            <span class="chip-dot"></span>
+            {{ doctorProfile?.verified ? '已认证' : '未认证' }}
           </div>
-
-          <el-form-item label="工作医院" prop="hospital">
-            <el-input v-model="profileForm.hospital" placeholder="请输入工作医院全称" />
-          </el-form-item>
         </div>
 
-        <div class="form-actions">
-          <el-button @click="resetForm">重置</el-button>
-          <el-button type="primary" @click="saveProfile" :loading="saving">保存资料</el-button>
+        <!-- 统计卡片 -->
+        <div class="card stats-card">
+          <h3 class="card-title">数据概览</h3>
+          <div class="stats-list">
+            <div class="stat-row">
+              <span class="stat-icon" style="background: #eef3ff; color: #5b8def">📹</span>
+              <div class="stat-text">
+                <span class="stat-num">{{ stats?.videoCount || 0 }}</span>
+                <span class="stat-label">上传视频</span>
+              </div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-icon" style="background: #f3efff; color: #a78bfa">▶️</span>
+              <div class="stat-text">
+                <span class="stat-num">{{ stats?.totalViews || 0 }}</span>
+                <span class="stat-label">总播放量</span>
+              </div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-icon" style="background: #fff8ee; color: #f59e42">👍</span>
+              <div class="stat-text">
+                <span class="stat-num">{{ stats?.totalLikes || 0 }}</span>
+                <span class="stat-label">获得点赞</span>
+              </div>
+            </div>
+            <div class="stat-row">
+              <span class="stat-icon" style="background: #edfaf5; color: #4ec3a0">📊</span>
+              <div class="stat-text">
+                <span class="stat-num">{{ stats?.profileCompleteness || 0 }}%</span>
+                <span class="stat-label">资料完整度</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </el-form>
-    </div>
+      </aside>
 
-    <div class="stats-section">
-      <h3>我的统计</h3>
-      <div class="stats-grid">
-        <div class="stat-item">
-          <div class="stat-number">{{ stats?.videoCount || 0 }}</div>
-          <div class="stat-label">上传视频</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number">{{ stats?.totalViews || 0 }}</div>
-          <div class="stat-label">总播放量</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number">{{ stats?.totalLikes || 0 }}</div>
-          <div class="stat-label">获得点赞</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number">{{ stats?.profileCompleteness || 0 }}%</div>
-          <div class="stat-label">资料完整度</div>
+      <!-- 右列：表单 -->
+      <div class="form-col">
+        <div class="card form-card" v-loading="loading">
+          <h3 class="card-title">基本信息</h3>
+
+          <el-form
+            ref="profileFormRef"
+            :model="profileForm"
+            :rules="profileRules"
+            label-width="100px"
+            class="profile-form"
+          >
+            <div class="form-row">
+              <el-form-item label="姓名" prop="name" class="form-item">
+                <el-input v-model="profileForm.name" placeholder="请输入真实姓名" />
+              </el-form-item>
+              <el-form-item label="年龄" prop="age" class="form-item">
+                <el-input-number
+                  v-model="profileForm.age"
+                  :min="18"
+                  :max="100"
+                  placeholder="年龄"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </div>
+
+            <div class="form-row">
+              <el-form-item label="职称" prop="title" class="form-item">
+                <el-select v-model="profileForm.title" placeholder="请选择职称" style="width: 100%">
+                  <el-option label="主任医师" value="主任医师" />
+                  <el-option label="副主任医师" value="副主任医师" />
+                  <el-option label="主治医师" value="主治医师" />
+                  <el-option label="住院医师" value="住院医师" />
+                  <el-option label="主任护师" value="主任护师" />
+                  <el-option label="副主任护师" value="副主任护师" />
+                  <el-option label="主管护师" value="主管护师" />
+                  <el-option label="护师" value="护师" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="联系方式" prop="phone" class="form-item">
+                <el-input v-model="profileForm.phone" placeholder="手机号码" />
+              </el-form-item>
+            </div>
+
+            <el-form-item label="工作医院" prop="hospital">
+              <el-input v-model="profileForm.hospital" placeholder="请输入工作医院全称" />
+            </el-form-item>
+
+            <div class="form-actions">
+              <el-button @click="resetForm" round>重置</el-button>
+              <el-button type="primary" @click="saveProfile" :loading="saving" round>保存资料</el-button>
+            </div>
+          </el-form>
         </div>
       </div>
     </div>
@@ -251,9 +280,8 @@ const handleAvatarChange = async (event: Event) => {
     return
   }
 
-  const maxSize = 2 * 1024 * 1024
-  if (file.size > maxSize) {
-    ElMessage.error('头像文件不能超过 2MB')
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过 5MB')
     input.value = ''
     return
   }
@@ -332,62 +360,131 @@ onMounted(async () => {
 
 <style scoped>
 .doctor-profile-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
+  max-width: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
 }
 
-.page-header {
+/* ── Hero ── */
+.page-hero {
+  position: relative;
   text-align: center;
-  margin-bottom: 2rem;
+  padding: 2.5rem 2rem 2rem;
+  background: linear-gradient(160deg, #1e293b 0%, #334155 55%, #3b4a63 100%);
+  border-radius: 18px;
+  color: #fff;
+  overflow: hidden;
 }
 
-.page-header h1 {
-  font-size: 2rem;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
+.hero-inner {
+  position: relative;
+  z-index: 1;
 }
 
-.header-desc {
-  color: #666;
-  font-size: 1rem;
+.hero-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.75rem;
+  background: rgba(91, 141, 239, 0.22);
+  color: #93b4f8;
+  border-radius: 999px;
+  margin-bottom: 0.7rem;
+  letter-spacing: 0.5px;
 }
 
-.profile-card {
+.page-hero h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 0.3rem;
+}
+
+.page-hero p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #94a3b8;
+}
+
+.deco-circle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.07;
+}
+
+.c1 {
+  width: 200px;
+  height: 200px;
+  background: #5b8def;
+  top: -60px;
+  right: -30px;
+}
+
+.c2 {
+  width: 120px;
+  height: 120px;
+  background: #a78bfa;
+  bottom: -40px;
+  left: 5%;
+}
+
+/* ── Layout grid ── */
+.content-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.card {
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
-  margin-bottom: 2rem;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
+  padding: 1.5rem;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #eee;
+.card-title {
+  font-size: 1rem;
+  font-weight: 650;
+  color: #1e293b;
+  margin: 0 0 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f1f3f7;
 }
 
-.avatar-section {
+/* ── Aside: avatar card ── */
+.aside-col {
   display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.avatar-card {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .avatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #4f8df5 0%, #2f6de0 100%);
+  width: 88px;
+  height: 88px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #5b8def 0%, #a78bfa 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 2rem;
-  font-weight: bold;
   overflow: hidden;
+  box-shadow: 0 4px 16px rgba(91, 141, 239, 0.2);
 }
 
 .avatar img {
@@ -396,45 +493,128 @@ onMounted(async () => {
   object-fit: cover;
 }
 
+.avatar-letter {
+  color: #fff;
+  font-size: 2.2rem;
+  font-weight: 700;
+}
+
 .avatar-input {
   display: none;
 }
 
-.upload-avatar {
+.upload-btn {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.avatar-info {
   display: flex;
   flex-direction: column;
+  gap: 0.25rem;
+}
+
+.avatar-info h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.title-tag {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #5b8def;
+  background: #eef3ff;
+  padding: 0.15rem 0.6rem;
+  border-radius: 6px;
+}
+
+.hospital-text {
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.status-chip {
+  display: inline-flex;
   align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  background: #f8f9fa;
+  color: #94a3b8;
 }
 
-.status-badge {
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  background: #f5f5f5;
-  color: #999;
+.status-chip.verified {
+  background: #edfaf5;
+  color: #4ec3a0;
 }
 
-.status-badge.verified {
-  background: #e8f5e8;
-  color: #52c41a;
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ── Stats card ── */
+.stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stat-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.stat-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-num {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+/* ── Form card ── */
+.form-card {
+  padding: 1.75rem;
 }
 
 .profile-form {
-  margin-top: 1rem;
-}
-
-.form-section h3 {
-  color: #2c3e50;
-  margin-bottom: 1.5rem;
-  font-size: 1.2rem;
+  margin-top: 0;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .form-item {
@@ -444,67 +624,52 @@ onMounted(async () => {
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid #eee;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #f1f3f7;
 }
 
-.stats-section {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
+:deep(.el-input__wrapper) {
+  border-radius: 10px;
 }
 
-.stats-section h3 {
-  color: #2c3e50;
-  margin-bottom: 1.5rem;
-  font-size: 1.2rem;
+:deep(.el-select .el-input__wrapper) {
+  border-radius: 10px;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
+/* ── Responsive ── */
+@media (max-width: 860px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aside-col {
+    flex-direction: row;
+    gap: 1rem;
+  }
+
+  .avatar-card,
+  .stats-card {
+    flex: 1;
+  }
 }
 
-.stat-item {
-  text-align: center;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.stat-number {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #2f6de0;
-  margin-bottom: 0.5rem;
-}
-
-.stat-label {
-  color: #666;
-  font-size: 0.9rem;
-}
-
-@media (max-width: 768px) {
-  .doctor-profile-container {
-    padding: 1rem;
+@media (max-width: 640px) {
+  .aside-col {
+    flex-direction: column;
   }
 
   .form-row {
     grid-template-columns: 1fr;
   }
 
-  .card-header {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
+  .page-hero {
+    padding: 1.75rem 1rem;
   }
 
-  .form-actions {
-    flex-direction: column;
+  .page-hero h1 {
+    font-size: 1.35rem;
   }
 }
 </style>

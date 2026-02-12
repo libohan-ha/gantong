@@ -9,13 +9,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '../users/user.entity';
 import { DoctorAppointment } from './entities/doctor-appointment.entity';
 import { getAuthUser, type AuthRequest } from '../auth/auth-user';
+import { DoctorProfile } from '../users/doctor-profile.entity';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN, Role.SCHOOL_ADMIN, Role.DOCTOR)
@@ -24,6 +25,8 @@ export class AdminAppointmentsController {
   constructor(
     @InjectRepository(DoctorAppointment)
     private readonly appointmentRepo: Repository<DoctorAppointment>,
+    @InjectRepository(DoctorProfile)
+    private readonly doctorProfileRepo: Repository<DoctorProfile>,
   ) {}
 
   @Get()
@@ -61,14 +64,30 @@ export class AdminAppointmentsController {
       .take(+pageSize)
       .getManyAndCount();
 
-    return { items, total, page: +page, pageSize: +pageSize };
+    const doctorUserIds = Array.from(new Set(items.map((item) => item.doctorUserId)));
+    const doctorProfiles =
+      doctorUserIds.length > 0
+        ? await this.doctorProfileRepo.find({ where: { userId: In(doctorUserIds) } })
+        : [];
+    const profileMap = new Map(doctorProfiles.map((p) => [p.userId, p]));
+
+    const mappedItems = items.map((item) => {
+      const profile = profileMap.get(item.doctorUserId);
+      return {
+        ...item,
+        doctorName: profile?.name ?? '',
+        doctorHospital: profile?.hospital ?? '',
+      };
+    });
+
+    return { items: mappedItems, total, page: +page, pageSize: +pageSize };
   }
   @Patch(':id')
   async updateStatus(
     @Param('id') id: number,
     @Body()
     body: {
-      status: 'pending' | 'confirmed' | 'rejected' | 'completed';
+      status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled';
       notes?: string;
     },
   ) {
