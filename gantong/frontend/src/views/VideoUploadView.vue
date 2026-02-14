@@ -438,242 +438,226 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="video-upload-container">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h1>授课视频上传</h1>
-      <p class="header-desc">分享您的专业知识，为基层医院提供优质教学资源</p>
-    </div>
-
-    <!-- 欢迎提示 -->
-    <div class="welcome-notice">
-      <div class="notice-content">
-        <div class="notice-icon">🎥</div>
-        <div class="notice-text">
-          <h3>欢迎上传授课视频</h3>
-          <p>分享您的专业知识和临床经验，为基层医院提供优质的教学资源。</p>
-        </div>
-        <button class="upload-btn-primary" @click="showUploadModal = true">
-          立即上传
-        </button>
+  <div class="video-upload-layout">
+    <!-- 顶部欢迎区 -->
+    <section class="welcome-banner">
+      <div class="welcome-text">
+        <span class="welcome-tag">视频管理</span>
+        <h1>授课视频上传</h1>
+        <p>分享您的专业知识，为基层医院提供优质教学资源</p>
       </div>
-    </div>
-
-    <!-- 统计卡片 -->
-    <div class="statistics-grid">
-      <div class="stat-card">
-        <div class="stat-icon total">📹</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.total }}</div>
-          <div class="stat-label">总视频数</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon published">✅</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.published }}</div>
-          <div class="stat-label">已发布</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon pending">⏰</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.pending }}</div>
-          <div class="stat-label">待审核</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon views">👁️</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.totalViews }}</div>
-          <div class="stat-label">总播放量</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 操作按钮 -->
-    <div class="action-bar">
-      <button class="upload-btn" @click="showUploadModal = true">
-        ⬆️ 上传新视频
+      <button class="banner-upload-btn" @click="showUploadModal = true">
+        ⬆️ 立即上传
       </button>
-    </div>
+      <div class="welcome-deco">
+        <div class="deco-circle c1"></div>
+        <div class="deco-circle c2"></div>
+        <div class="deco-circle c3"></div>
+      </div>
+    </section>
 
-    <!-- 标签导航 -->
-    <div class="tab-navigation">
-      <button
-        class="tab-btn"
-        :class="{ active: activeTab === 'videos' }"
-        @click="activeTab = 'videos'"
-      >
-        我的视频
-      </button>
-      <button
-        class="tab-btn"
-        :class="{ active: activeTab === 'profile' }"
-        @click="activeTab = 'profile'"
-      >
-        医生档案
-      </button>
-    </div>
+    <!-- 统计条 -->
+    <section class="stat-strip">
+      <div class="stat-chip">
+        <span class="chip-num">{{ statistics.total }}</span>
+        <span class="chip-label">总视频数</span>
+      </div>
+      <div class="stat-chip">
+        <span class="chip-num">{{ statistics.published }}</span>
+        <span class="chip-label">已发布</span>
+      </div>
+      <div class="stat-chip">
+        <span class="chip-num">{{ statistics.pending }}</span>
+        <span class="chip-label">待审核</span>
+      </div>
+      <div class="stat-chip">
+        <span class="chip-num">{{ statistics.totalViews }}</span>
+        <span class="chip-label">总播放量</span>
+      </div>
+    </section>
 
-    <!-- 医生档案标签 -->
-    <div v-if="activeTab === 'profile'" class="tab-content">
-      <div class="profile-card">
-        <div class="profile-header">
-          <div class="profile-avatar">{{ doctorProfile.name.charAt(0) }}</div>
-          <div class="profile-info">
-            <h2>{{ doctorProfile.name }}</h2>
-            <p>{{ doctorProfile.title }} | {{ doctorProfile.department }}</p>
-            <p>{{ doctorProfile.hospital }}</p>
-            <div class="verification-badge verified">
-              ✅ 已认证
-            </div>
-          </div>
+    <!-- 内容区 -->
+    <section class="cards-section">
+      <div class="section-header">
+        <div class="section-title">
+          <h2>我的视频</h2>
+          <span class="section-line"></span>
         </div>
-        
-        <div class="profile-details">
-          <div class="detail-grid">
-            <div class="detail-item">
-              <span class="label">年龄</span>
-              <span class="value">{{ doctorProfile.age }}岁</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">从业经验</span>
-              <span class="value">{{ doctorProfile.experience }}年</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">联系电话</span>
-              <span class="value">{{ doctorProfile.phone }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">邮箱</span>
-              <span class="value">{{ doctorProfile.email }}</span>
-            </div>
-          </div>
-          
-          <div class="specialties-section">
-            <h4>专业领域</h4>
-            <div class="specialty-tags">
-              <span 
-                v-for="specialty in doctorProfile.specialties" 
-                :key="specialty"
-                class="specialty-tag"
-              >
-                {{ specialty }}
-              </span>
-            </div>
-          </div>
+        <div class="tab-switch">
+          <button
+            class="tab-pill"
+            :class="{ active: activeTab === 'videos' }"
+            @click="activeTab = 'videos'"
+          >
+            视频列表
+          </button>
+          <button
+            class="tab-pill"
+            :class="{ active: activeTab === 'profile' }"
+            @click="activeTab = 'profile'"
+          >
+            医生档案
+          </button>
         </div>
       </div>
-    </div>
 
-    <!-- 视频列表标签 -->
-    <div v-if="activeTab === 'videos'" class="tab-content">
-      <div class="videos-grid">
-        <div 
-          v-for="video in uploadedVideos" 
-          :key="video.id"
-          class="video-card"
-        >
-          <div class="video-thumbnail">
-            <div class="thumbnail-placeholder">📹</div>
-            <div class="video-duration">{{ formatDuration(video.duration || 0) }}</div>
-            <span
-              class="status-badge"
-              :style="{ 
-                color: getStatusInfo(video.status).color,
-                backgroundColor: getStatusInfo(video.status).bgColor
-              }"
-            >
-              {{ getStatusInfo(video.status).text }}
-            </span>
+      <!-- 医生档案标签 -->
+      <div v-if="activeTab === 'profile'" class="tab-content">
+        <div class="profile-card">
+          <div class="profile-header">
+            <div class="profile-avatar">{{ doctorProfile.name.charAt(0) }}</div>
+            <div class="profile-info">
+              <h2>{{ doctorProfile.name }}</h2>
+              <p>{{ doctorProfile.title }} | {{ doctorProfile.department }}</p>
+              <p>{{ doctorProfile.hospital }}</p>
+              <div class="verification-badge verified">
+                ✅ 已认证
+              </div>
+            </div>
           </div>
-          
-          <div class="video-content">
-            <h3>{{ video.title }}</h3>
-            <p class="video-description">{{ video.description }}</p>
-            
-            <div class="video-meta">
-              <div class="instructor-info">
-                <span class="instructor-label">主讲医师：</span>
-                <span class="instructor-name">{{ video.mainInstructor?.name }}</span>
-                <span class="instructor-details">
-                  {{ video.mainInstructor?.title }} | {{ video.mainInstructor?.hospital }}
+
+          <div class="profile-details">
+            <div class="detail-grid">
+              <div class="detail-item">
+                <span class="label">年龄</span>
+                <span class="value">{{ doctorProfile.age }}岁</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">从业经验</span>
+                <span class="value">{{ doctorProfile.experience }}年</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">联系电话</span>
+                <span class="value">{{ doctorProfile.phone }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">邮箱</span>
+                <span class="value">{{ doctorProfile.email }}</span>
+              </div>
+            </div>
+
+            <div class="specialties-section">
+              <h4>专业领域</h4>
+              <div class="specialty-tags">
+                <span
+                  v-for="specialty in doctorProfile.specialties"
+                  :key="specialty"
+                  class="specialty-tag"
+                >
+                  {{ specialty }}
                 </span>
               </div>
-              
-              <div class="video-details">
-                <div class="detail-row">
-                  <span class="detail-label">分类：</span>
-                  <span class="detail-value">{{ video.category }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">难度：</span>
-                  <span class="detail-value">{{ video.difficulty === 'beginner' ? '初级' : video.difficulty === 'intermediate' ? '中级' : '高级' }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">文件大小：</span>
-                  <span class="detail-value">{{ formatFileSize(video.fileSize || 0) }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">上传时间：</span>
-                  <span class="detail-value">{{ video.uploadDate }}</span>
-                </div>
-              </div>
             </div>
-            
-            <div class="video-tags">
-              <span 
-                v-for="tag in video.tags" 
-                :key="tag"
-                class="video-tag"
-              >
-                {{ tag }}
-              </span>
-            </div>
-            
-            <div v-if="video.status === 'published'" class="video-stats">
-              <span class="stat-item">👁️ {{ video.viewCount }}</span>
-              <span class="stat-item">👍 {{ video.likes }}</span>
-              <span class="stat-item">⬇️ {{ video.downloads }}</span>
-            </div>
-            
-            <div v-if="video.rejectionReason" class="rejection-reason">
-              <h5>拒绝原因：</h5>
-              <p>{{ video.rejectionReason }}</p>
-            </div>
-          </div>
-          
-          <div class="video-actions">
-            <button 
-              v-if="video.status === 'rejected'"
-              class="action-btn reupload-btn"
-              @click="reuploadVideo(video.id)"
-            >
-              重新上传
-            </button>
-            <button 
-              class="action-btn delete-btn"
-              @click="deleteVideo(video.id)"
-            >
-              删除
-            </button>
           </div>
         </div>
       </div>
-      
-      <div v-if="uploadedVideos.length === 0" class="no-videos">
-        <p>还没有上传任何视频</p>
-        <button class="upload-btn" @click="showUploadModal = true">
-          上传第一个视频
-        </button>
+
+      <!-- 视频列表标签 -->
+      <div v-if="activeTab === 'videos'" class="tab-content">
+        <div class="videos-grid">
+          <div
+            v-for="video in uploadedVideos"
+            :key="video.id"
+            class="video-card"
+          >
+            <div class="video-thumbnail">
+              <div class="thumbnail-placeholder">📹</div>
+              <div class="video-duration">{{ formatDuration(video.duration || 0) }}</div>
+              <span
+                class="status-badge"
+                :style="{
+                  color: getStatusInfo(video.status).color,
+                  backgroundColor: getStatusInfo(video.status).bgColor
+                }"
+              >
+                {{ getStatusInfo(video.status).text }}
+              </span>
+            </div>
+
+            <div class="video-body">
+              <h3>{{ video.title }}</h3>
+              <p class="video-description">{{ video.description }}</p>
+
+              <div class="video-meta">
+                <div class="instructor-info">
+                  <span class="instructor-label">主讲医师：</span>
+                  <span class="instructor-name">{{ video.mainInstructor?.name }}</span>
+                  <span class="instructor-details">
+                    {{ video.mainInstructor?.title }} | {{ video.mainInstructor?.hospital }}
+                  </span>
+                </div>
+
+                <div class="video-details">
+                  <div class="detail-row">
+                    <span class="detail-label">分类：</span>
+                    <span class="detail-value">{{ video.category }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">难度：</span>
+                    <span class="detail-value">{{ video.difficulty === 'beginner' ? '初级' : video.difficulty === 'intermediate' ? '中级' : '高级' }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">文件大小：</span>
+                    <span class="detail-value">{{ formatFileSize(video.fileSize || 0) }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">上传时间：</span>
+                    <span class="detail-value">{{ video.uploadDate }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="video-tags">
+                <span
+                  v-for="tag in video.tags"
+                  :key="tag"
+                  class="video-tag"
+                >
+                  {{ tag }}
+                </span>
+              </div>
+
+              <div v-if="video.status === 'published'" class="video-stats">
+                <span class="stat-item">👁️ {{ video.viewCount }}</span>
+                <span class="stat-item">👍 {{ video.likes }}</span>
+                <span class="stat-item">⬇️ {{ video.downloads }}</span>
+              </div>
+
+              <div v-if="video.rejectionReason" class="rejection-reason">
+                <h5>拒绝原因：</h5>
+                <p>{{ video.rejectionReason }}</p>
+              </div>
+            </div>
+
+            <div class="video-actions">
+              <button
+                v-if="video.status === 'rejected'"
+                class="action-btn reupload-btn"
+                @click="reuploadVideo(video.id)"
+              >
+                重新上传
+              </button>
+              <button
+                class="action-btn delete-btn"
+                @click="deleteVideo(video.id)"
+              >
+                删除
+              </button>
+            </div>
+
+            <!-- 底部彩条 -->
+            <div class="card-bottom-bar"></div>
+          </div>
+        </div>
+
+        <div v-if="uploadedVideos.length === 0" class="no-videos">
+          <p>还没有上传任何视频</p>
+          <button class="banner-upload-btn" @click="showUploadModal = true">
+            上传第一个视频
+          </button>
+        </div>
       </div>
-    </div>
-
-
+    </section>
 
     <!-- 视频上传弹窗 -->
     <div v-if="showUploadModal" class="modal-overlay" @click="showUploadModal = false">
@@ -682,21 +666,21 @@ onMounted(() => {
           <h2>上传授课视频</h2>
           <button class="close-btn" @click="showUploadModal = false">×</button>
         </div>
-        
+
         <form @submit.prevent="submitUpload" class="upload-form">
           <div class="form-section">
             <h3>视频基本信息</h3>
-            
+
             <div class="form-group">
               <label>视频标题 *</label>
               <input v-model="uploadForm.title" type="text" required>
             </div>
-            
+
             <div class="form-group">
               <label>视频描述 *</label>
               <textarea v-model="uploadForm.description" rows="3" required></textarea>
             </div>
-            
+
             <div class="form-row">
               <div class="form-group">
                 <label>视频分类 *</label>
@@ -707,7 +691,7 @@ onMounted(() => {
                   </option>
                 </select>
               </div>
-              
+
               <div class="form-group">
                 <label>难度等级 *</label>
                 <select v-model="uploadForm.difficulty" required>
@@ -717,13 +701,13 @@ onMounted(() => {
                 </select>
               </div>
             </div>
-            
+
             <div class="form-group">
               <label>标签 *</label>
               <div class="tags-input">
                 <div class="selected-tags">
-                  <span 
-                    v-for="tag in uploadForm.tags" 
+                  <span
+                    v-for="tag in uploadForm.tags"
                     :key="tag"
                     class="tag-item"
                   >
@@ -733,24 +717,24 @@ onMounted(() => {
                     </button>
                   </span>
                 </div>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="输入标签后按回车"
                   @keydown.enter.prevent="handleTagInputEnter"
                 >
               </div>
             </div>
-            
+
             <div class="form-group">
               <label>目标学员 *</label>
               <div class="checkbox-group">
-                <label 
-                  v-for="audience in audienceOptions" 
+                <label
+                  v-for="audience in audienceOptions"
                   :key="audience"
                   class="checkbox-item"
                 >
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     :value="audience"
                     v-model="uploadForm.targetAudience"
                   >
@@ -759,16 +743,14 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          
 
-          
           <div class="form-section">
             <h3>视频文件</h3>
-            
+
             <div class="form-group">
               <label>选择视频文件 *</label>
-              <input 
-                type="file" 
+              <input
+                type="file"
                 accept="video/*"
                 @change="handleFileSelect"
                 required
@@ -779,13 +761,13 @@ onMounted(() => {
                 <p>建议分辨率：1920x1080 或更高</p>
               </div>
             </div>
-            
+
             <div v-if="uploadForm.file" class="selected-file">
               <h5>已选择文件：</h5>
               <p>{{ uploadForm.file.name }}</p>
               <p>大小：{{ formatFileSize(Math.round(uploadForm.file.size / (1024 * 1024))) }}</p>
             </div>
-            
+
             <div v-if="isUploading" class="upload-progress">
               <div class="progress-bar">
                 <div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div>
@@ -793,18 +775,18 @@ onMounted(() => {
               <p>上传进度：{{ uploadProgress }}%</p>
             </div>
           </div>
-          
+
           <div class="form-actions">
-            <button 
-              type="button" 
-              class="cancel-btn" 
+            <button
+              type="button"
+              class="cancel-btn"
               @click="showUploadModal = false"
               :disabled="isUploading"
             >
               取消
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               class="submit-btn"
               :disabled="isUploading"
             >
@@ -818,619 +800,736 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.video-upload-container {
-  max-width: 1400px;
+/* ============================================================
+   Video Upload — Unified Design System (Amber / Slate)
+   ============================================================ */
+
+/* ── Page layout ── */
+.video-upload-layout {
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 2rem;
-}
-
-/* 页面头部 */
-.page-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.page-header h1 {
-  font-size: 2.5rem;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-}
-
-.header-desc {
-  color: #666;
-  font-size: 1.1rem;
-}
-
-/* 欢迎提示 */
-.welcome-notice {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  color: white;
-}
-
-.notice-content {
+  padding: 2rem 1.5rem 3rem;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 1.5rem;
 }
 
-.notice-icon {
-  font-size: 2rem;
-  flex-shrink: 0;
+/* ── Welcome Banner (Hero) ── */
+.welcome-banner {
+  position: relative;
+  background: linear-gradient(160deg, #1e293b 0%, #334155 55%, #3b4a63 100%);
+  border-radius: 18px;
+  padding: 2.5rem 2.75rem 2.25rem;
+  color: #fff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
 }
 
-.notice-text {
+.welcome-text {
+  position: relative;
+  z-index: 1;
+}
+
+.welcome-tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.75rem;
+  background: rgba(245, 158, 66, 0.2);
+  color: #f59e42;
+  border-radius: 999px;
+  margin-bottom: 0.7rem;
+  letter-spacing: 0.5px;
+}
+
+.welcome-banner h1 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+}
+
+.welcome-banner p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.banner-upload-btn {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #f59e42 0%, #e8890a 100%);
+  color: #fff;
+  border: none;
+  padding: 11px 28px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  transition: transform 0.18s, box-shadow 0.18s;
+  box-shadow: 0 4px 14px rgba(245, 158, 66, 0.25);
+}
+
+.banner-upload-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 158, 66, 0.35);
+}
+
+/* Decorative circles */
+.welcome-deco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.deco-circle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.07;
+}
+
+.c1 {
+  width: 200px;
+  height: 200px;
+  background: #f59e42;
+  top: -60px;
+  right: -30px;
+}
+
+.c2 {
+  width: 120px;
+  height: 120px;
+  background: #fbbf24;
+  bottom: -40px;
+  right: 100px;
+}
+
+.c3 {
+  width: 80px;
+  height: 80px;
+  background: #e8890a;
+  top: 10px;
+  right: 200px;
+}
+
+/* ── Stat Strip ── */
+.stat-strip {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 13px;
+  padding: 8px 18px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.chip-num {
+  font-size: 20px;
+  font-weight: 750;
+  color: #1e293b;
+}
+
+.chip-label {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* ── Cards Section ── */
+.cards-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   flex: 1;
 }
 
-.notice-text h3 {
-  color: white;
-  margin: 0 0 0.5rem 0;
-  font-size: 1.2rem;
-}
-
-.notice-text p {
-  color: rgba(255, 255, 255, 0.9);
+.section-title h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
   margin: 0;
-  line-height: 1.5;
-}
-
-.upload-btn-primary {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
   white-space: nowrap;
 }
 
-.upload-btn-primary:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
-  transform: translateY(-2px);
+.section-line {
+  flex: 1;
+  height: 1px;
+  background: #e8eaef;
 }
 
-/* 统计卡片 */
-.statistics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+/* ── Tab Switch ── */
+.tab-switch {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  gap: 6px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
 }
 
-.stat-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-}
-
-.stat-icon.total {
-  background: #e3f2fd;
-}
-
-.stat-icon.published {
-  background: #e8f5e8;
-}
-
-.stat-icon.pending {
-  background: #fff3e0;
-}
-
-.stat-icon.views {
-  background: #f3e5f5;
-}
-
-.stat-number {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #2c3e50;
-}
-
-.stat-label {
-  color: #666;
-  font-size: 0.9rem;
-}
-
-/* 操作栏 */
-.action-bar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1rem;
-}
-
-.upload-btn {
-  background: #42b883;
-  color: white;
+.tab-pill {
+  padding: 7px 18px;
   border: none;
-  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: #64748b;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.3s ease;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-.upload-btn:hover {
-  background: #369870;
+.tab-pill.active {
+  background: #fff;
+  color: #1e293b;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-/* 标签导航 */
-.tab-navigation {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
+.tab-pill:hover:not(.active) {
+  color: #1e293b;
 }
 
-.tab-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  background: #f0f0f0;
-  color: #666;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.tab-btn.active {
-  background: #42b883;
-  color: white;
-}
-
-.tab-btn:hover:not(.active) {
-  background: #e0e0e0;
-}
-
-/* 标签内容 */
+/* ── Tab Content ── */
 .tab-content {
-  min-height: 400px;
+  min-height: 300px;
 }
 
-/* 医生档案 */
+/* ── Profile Card ── */
 .profile-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
   overflow: hidden;
 }
 
 .profile-header {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.5rem;
   padding: 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(160deg, #1e293b 0%, #334155 55%, #3b4a63 100%);
   color: white;
 }
 
 .profile-avatar {
-  width: 100px;
-  height: 100px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
+  width: 72px;
+  height: 72px;
+  background: linear-gradient(135deg, #f59e42 0%, #e8890a 100%);
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
-  font-weight: bold;
-  backdrop-filter: blur(10px);
+  font-size: 1.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .profile-info h2 {
-  margin: 0 0 0.5rem 0;
-  font-size: 2rem;
+  margin: 0 0 0.35rem 0;
+  font-size: 1.35rem;
+  font-weight: 700;
 }
 
 .profile-info p {
-  margin: 0 0 0.25rem 0;
-  opacity: 0.9;
+  margin: 0 0 0.2rem 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .verification-badge {
   display: inline-block;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  margin-top: 1rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.6rem;
+  letter-spacing: 0.3px;
 }
 
 .verification-badge.verified {
-  background: rgba(76, 175, 80, 0.2);
-  color: #4caf50;
-  border: 1px solid rgba(76, 175, 80, 0.5);
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
 }
 
 .profile-details {
-  padding: 2rem;
+  padding: 1.5rem 2rem;
 }
 
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .detail-item {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 4px;
 }
 
 .detail-item .label {
-  color: #666;
-  font-size: 0.9rem;
+  color: #94a3b8;
+  font-size: 12.5px;
 }
 
 .detail-item .value {
-  color: #2c3e50;
-  font-weight: 500;
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 .specialties-section h4 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
+  color: #1e293b;
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 650;
 }
 
 .specialty-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .specialty-tag {
-  background: #e8f5e8;
-  color: #42b883;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
+  background: rgba(245, 158, 66, 0.08);
+  color: #e8890a;
+  padding: 0.3rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
-/* 视频卡片 */
+/* ── Video Cards Grid ── */
 .videos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.15rem;
 }
 
 .video-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  position: relative;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
   overflow: hidden;
-  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .video-card:hover {
+  border-color: transparent;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
   transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
 }
 
+.video-card:hover .card-bottom-bar {
+  opacity: 1;
+}
+
+.card-bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f59e42, #e8890a);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Thumbnail */
 .video-thumbnail {
   position: relative;
-  height: 200px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  height: 160px;
+  background: linear-gradient(135deg, #f59e42 0%, #e8890a 50%, #d97706 100%);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .thumbnail-placeholder {
-  font-size: 4rem;
+  font-size: 3rem;
   color: white;
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .video-duration {
   position: absolute;
   bottom: 10px;
   left: 10px;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
 .status-badge {
   position: absolute;
   top: 10px;
   right: 10px;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  border: 1px solid currentColor;
+  padding: 4px 14px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
-.video-content {
-  padding: 1.5rem;
+/* Video body */
+.video-body {
+  padding: 1.25rem 1.35rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
-.video-content h3 {
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-  font-size: 1.2rem;
+.video-body h3 {
+  font-size: 1.02rem;
+  font-weight: 650;
+  color: #1e293b;
+  margin: 0 0 0.4rem;
   line-height: 1.4;
 }
 
 .video-description {
-  color: #666;
-  margin-bottom: 1rem;
+  font-size: 0.82rem;
+  color: #64748b;
   line-height: 1.6;
+  margin: 0 0 0.75rem;
   display: -webkit-box;
-  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
+/* Video meta */
 .video-meta {
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .instructor-info {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
 }
 
 .instructor-label {
-  color: #666;
-  font-size: 0.9rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
 }
 
 .instructor-name {
-  color: #2c3e50;
-  font-weight: 500;
-  margin-left: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #0284c7;
+  padding: 0.15rem 0.5rem;
+  background: rgba(245, 158, 66, 0.1);
+  border-radius: 6px;
 }
 
 .instructor-details {
   display: block;
-  color: #666;
-  font-size: 0.8rem;
-  margin-top: 0.25rem;
+  font-size: 0.68rem;
+  color: #94a3b8;
+  margin-top: 2px;
 }
 
 .video-details {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
 .detail-row {
-  display: flex;
-  justify-content: space-between;
+  display: inline-flex;
   align-items: center;
+  gap: 4px;
+  padding: 0.15rem 0.45rem;
+  background: #f8fafc;
+  border: 1px solid #f0f0f5;
+  border-radius: 5px;
 }
 
 .detail-label {
-  color: #666;
-  font-size: 0.9rem;
+  font-size: 0.68rem;
+  color: #94a3b8;
 }
 
 .detail-value {
-  color: #2c3e50;
-  font-size: 0.9rem;
+  font-size: 0.68rem;
+  color: #1e293b;
+  font-weight: 600;
 }
 
+/* Tags */
 .video-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
+  gap: 0.3rem;
+  margin-bottom: 0.65rem;
 }
 
 .video-tag {
-  background: #e3f2fd;
-  color: #2196f3;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  font-size: 0.68rem;
+  padding: 0.15rem 0.5rem;
+  background: rgba(245, 158, 66, 0.08);
+  color: #e8890a;
+  border-radius: 999px;
+  font-weight: 500;
 }
 
+/* Stats */
 .video-stats {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
 }
 
 .stat-item {
-  color: #666;
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+  color: #64748b;
 }
 
+/* Rejection */
 .rejection-reason {
-  background: #ffebee;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.12);
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  margin-bottom: 0.65rem;
 }
 
 .rejection-reason h5 {
-  color: #f44336;
-  margin: 0 0 0.5rem 0;
+  color: #ef4444;
+  margin: 0 0 0.35rem 0;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .rejection-reason p {
-  color: #c62828;
+  color: #dc2626;
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
+/* Actions */
 .video-actions {
   display: flex;
-  gap: 0.5rem;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #f0f0f0;
-  background: #f8f9fa;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid #f1f5f9;
 }
 
 .action-btn {
   flex: 1;
-  padding: 0.5rem;
-  border: none;
-  border-radius: 6px;
+  padding: 7px 0;
+  border-radius: 9px;
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.18s;
 }
 
 .reupload-btn {
-  background: #2196f3;
-  color: white;
+  background: transparent;
+  border: 1.5px solid #e2e8f0;
+  color: #475569;
 }
 
 .reupload-btn:hover {
-  background: #1976d2;
+  border-color: #f59e42;
+  color: #f59e42;
+  background: rgba(245, 158, 66, 0.04);
 }
 
 .delete-btn {
-  background: #f44336;
-  color: white;
+  background: transparent;
+  border: 1.5px solid #fecaca;
+  color: #ef4444;
 }
 
 .delete-btn:hover {
-  background: #d32f2f;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.04);
 }
 
+/* Empty state */
 .no-videos {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #666;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3.5rem 2rem;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
+  color: #64748b;
 }
 
 .no-videos p {
-  margin-bottom: 2rem;
-  font-size: 1.1rem;
+  margin: 0;
+  font-weight: 500;
+  color: #1e293b;
+  font-size: 0.95rem;
 }
 
-/* 弹窗样式 */
+/* ── Modal ── */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
+  padding: 20px;
 }
 
 .upload-modal {
-  background: white;
-  border-radius: 12px;
+  background: #fff;
+  border-radius: 16px;
   max-width: 800px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .modal-header h2 {
   margin: 0;
-  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .close-btn {
-  background: none;
+  background: #f1f5f9;
   border: none;
-  font-size: 2rem;
-  cursor: pointer;
-  color: #999;
-  padding: 0;
-  width: 30px;
-  height: 30px;
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  color: #64748b;
+  transition: background 0.15s, color 0.15s;
 }
 
 .close-btn:hover {
-  color: #666;
+  background: #e2e8f0;
+  color: #1e293b;
 }
 
-/* 表单样式 */
+/* ── Form ── */
 .upload-form {
-  padding: 1.5rem;
+  padding: 24px;
 }
 
 .form-section {
-  margin-bottom: 2rem;
+  margin-bottom: 24px;
 }
 
 .form-section h3 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
-  border-bottom: 2px solid #42b883;
-  padding-bottom: 0.5rem;
+  color: #1e293b;
+  margin-bottom: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f59e42;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: 14px;
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 14px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
-  color: #2c3e50;
-  font-weight: 500;
+  margin-bottom: 6px;
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 13.5px;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
+  padding: 10px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #1e293b;
+  background: #f8fafc;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #42b883;
+  border-color: #f59e42;
+  box-shadow: 0 0 0 3px rgba(245, 158, 66, 0.1);
+  background: #fff;
 }
 
 .form-group textarea {
@@ -1449,32 +1548,44 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
+  font-size: 13.5px;
+  color: #475569;
 }
 
 .checkbox-item input[type="checkbox"] {
   width: auto;
+  accent-color: #f59e42;
 }
 
 .tags-input {
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
   padding: 0.5rem;
-  min-height: 80px;
+  min-height: 72px;
+  background: #f8fafc;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.tags-input:focus-within {
+  border-color: #f59e42;
+  box-shadow: 0 0 0 3px rgba(245, 158, 66, 0.1);
+  background: #fff;
 }
 
 .selected-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-bottom: 0.5rem;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
 }
 
 .tag-item {
-  background: #e8f5e8;
-  color: #42b883;
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  background: rgba(245, 158, 66, 0.08);
+  color: #e8890a;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -1486,7 +1597,8 @@ onMounted(() => {
   color: inherit;
   cursor: pointer;
   padding: 0;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  line-height: 1;
 }
 
 .tags-input input {
@@ -1494,36 +1606,44 @@ onMounted(() => {
   outline: none;
   width: 100%;
   padding: 0.25rem;
+  background: transparent;
+  font-size: 14px;
+  color: #1e293b;
 }
 
 .file-info {
-  background: #f8f9fa;
+  background: #f8fafc;
+  border: 1px solid #eef0f4;
   padding: 1rem;
-  border-radius: 6px;
+  border-radius: 10px;
   margin-top: 0.5rem;
 }
 
 .file-info p {
   margin: 0 0 0.25rem 0;
-  color: #666;
-  font-size: 0.9rem;
+  color: #64748b;
+  font-size: 0.82rem;
 }
 
 .selected-file {
-  background: #e8f5e8;
+  background: rgba(245, 158, 66, 0.06);
+  border: 1px solid rgba(245, 158, 66, 0.15);
   padding: 1rem;
-  border-radius: 6px;
+  border-radius: 10px;
   margin-top: 0.5rem;
 }
 
 .selected-file h5 {
-  color: #42b883;
-  margin: 0 0 0.5rem 0;
+  color: #e8890a;
+  margin: 0 0 0.4rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .selected-file p {
-  margin: 0 0 0.25rem 0;
-  color: #2c3e50;
+  margin: 0 0 0.2rem 0;
+  color: #1e293b;
+  font-size: 0.85rem;
 }
 
 .upload-progress {
@@ -1532,111 +1652,146 @@ onMounted(() => {
 
 .progress-bar {
   width: 100%;
-  height: 8px;
-  background: #e0e0e0;
-  border-radius: 4px;
+  height: 5px;
+  background: #f1f5f9;
+  border-radius: 3px;
   overflow: hidden;
   margin-bottom: 0.5rem;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #42b883, #369870);
+  background: linear-gradient(90deg, #f59e42, #e8890a);
+  border-radius: 3px;
   transition: width 0.3s ease;
 }
 
 .upload-progress p {
-  color: #666;
-  font-size: 0.9rem;
+  color: #64748b;
+  font-size: 0.82rem;
   margin: 0;
 }
 
 .form-actions {
   display: flex;
-  gap: 1rem;
+  gap: 12px;
   justify-content: flex-end;
-  margin-top: 2rem;
+  margin-top: 24px;
 }
 
 .form-actions .cancel-btn,
 .form-actions .submit-btn {
-  padding: 0.75rem 1.5rem;
+  padding: 10px 24px;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.3s ease;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.18s;
 }
 
 .form-actions .cancel-btn {
-  background: #f0f0f0;
-  color: #666;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1.5px solid #e2e8f0;
 }
 
 .form-actions .cancel-btn:hover:not(:disabled) {
-  background: #e0e0e0;
+  background: #e2e8f0;
 }
 
 .form-actions .submit-btn {
-  background: #42b883;
-  color: white;
+  background: linear-gradient(135deg, #f59e42 0%, #e8890a 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(245, 158, 66, 0.25);
 }
 
 .form-actions .submit-btn:hover:not(:disabled) {
-  background: #369870;
+  box-shadow: 0 6px 20px rgba(245, 158, 66, 0.35);
+  transform: translateY(-1px);
 }
 
 .form-actions button:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
-/* 响应式设计 */
+/* ── Responsive ── */
 @media (max-width: 768px) {
-  .video-upload-container {
+  .video-upload-layout {
     padding: 1rem;
   }
-  
-  .page-header h1 {
-    font-size: 2rem;
-  }
-  
-  .statistics-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
-  
-  .notice-content {
+
+  .welcome-banner {
     flex-direction: column;
+    padding: 1.75rem 1.5rem 1.5rem;
     text-align: center;
   }
-  
+
+  .welcome-banner h1 {
+    font-size: 1.3rem;
+  }
+
+  .stat-strip {
+    gap: 8px;
+  }
+
+  .stat-chip {
+    padding: 6px 12px;
+    min-width: 0;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .profile-header {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .detail-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .videos-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .video-details {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .checkbox-group {
     grid-template-columns: 1fr;
   }
-  
+
   .form-actions {
     flex-direction: column;
+  }
+
+  .video-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .video-body {
+    padding: 1rem;
+  }
+
+  .video-thumbnail {
+    height: 140px;
+  }
+
+  .profile-details {
+    padding: 1.25rem;
   }
 }
 </style>

@@ -1,27 +1,28 @@
 import {
-  Controller,
-  Post,
-  Get,
   Body,
-  UseGuards,
-  UploadedFiles,
-  UseInterceptors,
-  Req,
-  Query,
-  Param,
-  Patch,
+  Controller,
   Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UploadedFiles,
+  UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CasesService } from './cases.service';
 import { CreateCaseDto } from './dto/create-case.dto';
 import { UpdateCaseDto } from './dto/update-case.dto';
+import { QueryCasesDto } from './dto/query-cases.dto';
 import { casesMulterConfig } from './multer.config';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '../users/user.entity';
-import { QueryCasesDto } from './dto/query-cases.dto';
 import { getAuthUserId, type AuthRequest } from '../auth/auth-user';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -29,7 +30,6 @@ import { getAuthUserId, type AuthRequest } from '../auth/auth-user';
 export class CasesController {
   constructor(private readonly casesService: CasesService) {}
 
-  // 医生上传病例（标题必填，文件至少1个）
   @Post('cases')
   @Roles(Role.DOCTOR)
   @UseInterceptors(FilesInterceptor('files', 10, casesMulterConfig))
@@ -41,7 +41,6 @@ export class CasesController {
     return this.casesService.createCase(getAuthUserId(req), dto, files);
   }
 
-  // 医生查看自己的病例列表
   @Get('cases/mine')
   @Roles(Role.DOCTOR)
   async findMine(@Req() req: AuthRequest, @Query() query: QueryCasesDto) {
@@ -52,21 +51,43 @@ export class CasesController {
     );
   }
 
-  // 编辑病例（仅限本人）
   @Patch('cases/:id')
   @Roles(Role.DOCTOR)
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCaseDto,
     @Req() req: AuthRequest,
   ) {
-    return this.casesService.updateCase(+id, getAuthUserId(req), dto);
+    return this.casesService.updateCase(id, getAuthUserId(req), dto);
   }
 
-  // 删除病例（仅限本人）
+  @Post('cases/:id/files')
+  @Roles(Role.DOCTOR)
+  @UseInterceptors(FilesInterceptor('files', 10, casesMulterConfig))
+  async addFiles(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: AuthRequest,
+  ) {
+    return this.casesService.addFilesToCase(id, getAuthUserId(req), files);
+  }
+
+  @Delete('cases/:id/files/:fileId')
+  @Roles(Role.DOCTOR)
+  async removeFile(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('fileId', ParseIntPipe) fileId: number,
+    @Req() req: AuthRequest,
+  ) {
+    return this.casesService.removeFileFromCase(id, fileId, getAuthUserId(req));
+  }
+
   @Delete('cases/:id')
   @Roles(Role.DOCTOR)
-  async remove(@Param('id') id: string, @Req() req: AuthRequest) {
-    return this.casesService.deleteCase(+id, getAuthUserId(req));
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthRequest,
+  ) {
+    return this.casesService.deleteCase(id, getAuthUserId(req));
   }
 }

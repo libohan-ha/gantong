@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateCaseDto {
   @IsString()
@@ -9,4 +9,9 @@ export class CreateCaseDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['online', 'offline'])
+  caseType?: 'online' | 'offline';
 }

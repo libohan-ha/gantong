@@ -629,79 +629,63 @@ onMounted(() => {
 
 <template>
   <div class="training-management-container">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h1>专家培训管理</h1>
-      <p class="header-desc">一二三线城市医院专家向基层医院授课培训</p>
-    </div>
+    <!-- Hero Header -->
+    <div class="hero-header">
+      <div class="hero-deco hero-deco--1"></div>
+      <div class="hero-deco hero-deco--2"></div>
+      <div class="hero-deco hero-deco--3"></div>
 
-    <!-- 统计卡片 -->
-    <div class="statistics-grid">
-      <div class="stat-card">
-        <div class="stat-icon total">📚</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.total }}</div>
-          <div class="stat-label">培训课程</div>
+      <div class="hero-body">
+        <span class="hero-badge">培训管理</span>
+        <h1 class="hero-title">专家培训管理</h1>
+        <p class="hero-subtitle">一二三线城市医院专家向基层医院授课培训</p>
+
+        <div class="hero-stats">
+          <div class="stat-chip">
+            <span class="chip-num">{{ statistics.total }}</span>
+            <span class="chip-label">培训课程</span>
+          </div>
+          <div class="stat-chip">
+            <span class="chip-num">{{ statistics.published }}</span>
+            <span class="chip-label">已发布</span>
+          </div>
+          <div class="stat-chip">
+            <span class="chip-num">{{ statistics.ongoing }}</span>
+            <span class="chip-label">进行中</span>
+          </div>
+          <div class="stat-chip">
+            <span class="chip-num">{{ statistics.totalParticipants }}</span>
+            <span class="chip-label">总参与人数</span>
+          </div>
         </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon published">✅</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.published }}</div>
-          <div class="stat-label">已发布</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon ongoing">🎯</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.ongoing }}</div>
-          <div class="stat-label">进行中</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon participants">👥</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.totalParticipants }}</div>
-          <div class="stat-label">总参与人数</div>
-        </div>
+
+        <button class="create-btn" @click="createCourse">＋ 创建新培训</button>
       </div>
     </div>
 
-    <!-- 操作栏 -->
-    <div class="action-bar">
-      <button class="create-btn" @click="createCourse">
-        ➕ 创建新培训
-      </button>
-    </div>
-
-    <!-- 筛选和搜索 -->
-    <div class="filters-section">
+    <!-- Search / Filter -->
+    <div class="filters-card">
       <div class="filters-row">
         <div class="search-group">
-          <input 
+          <span class="search-icon">🔍</span>
+          <input
             v-model="searchKeyword"
-            type="text" 
+            type="text"
             placeholder="搜索培训标题、讲师姓名或描述..."
             class="search-input"
           >
         </div>
-        
         <div class="filter-group">
           <select v-model="filterType" class="filter-select">
             <option v-for="option in typeOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
-          
           <select v-model="filterStatus" class="filter-select">
             <option v-for="option in statusOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
-          
           <select v-model="filterCategory" class="filter-select">
             <option v-for="option in categoryOptions" :key="option.value" :value="option.value">
               {{ option.label }}
@@ -711,27 +695,32 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 培训课程列表 -->
+    <!-- Section Title -->
+    <div class="section-heading">
+      <h2>培训课程</h2>
+      <div class="section-line"></div>
+    </div>
+
+    <!-- Course Cards -->
     <div class="courses-grid">
-      <div 
-        v-for="course in filteredCourses" 
+      <div
+        v-for="course in filteredCourses"
         :key="course.id"
         class="course-card"
       >
         <div class="course-header">
           <div class="course-type">
-            <span class="type-icon">{{ getTypeInfo(course.type).icon }}</span>
-            <span 
+            <span class="type-icon-box">{{ getTypeInfo(course.type).icon }}</span>
+            <span
               class="type-text"
               :style="{ color: getTypeInfo(course.type).color }"
             >
               {{ getTypeInfo(course.type).text }}
             </span>
           </div>
-          
-          <span 
+          <span
             class="status-badge"
-            :style="{ 
+            :style="{
               color: getStatusInfo(course.status).color,
               backgroundColor: getStatusInfo(course.status).bgColor
             }"
@@ -739,11 +728,11 @@ onMounted(() => {
             {{ getStatusInfo(course.status).text }}
           </span>
         </div>
-        
+
         <div class="course-content">
           <h3 class="course-title">{{ course.title }}</h3>
           <p class="course-description">{{ course.description }}</p>
-          
+
           <div class="course-meta">
             <div class="instructor-info">
               <div class="instructor-avatar">{{ course.instructor.name.charAt(0) }}</div>
@@ -753,43 +742,43 @@ onMounted(() => {
                 <div class="instructor-hospital">{{ course.instructor.hospital }}</div>
               </div>
             </div>
-            
+
             <div class="course-details">
-              <div class="detail-item">
+              <div class="detail-chip">
                 <span class="detail-label">分类</span>
                 <span class="detail-value">{{ course.category }}</span>
               </div>
-              <div class="detail-item">
+              <div class="detail-chip">
                 <span class="detail-label">时长</span>
                 <span class="detail-value">{{ course.duration }}小时</span>
               </div>
-              <div class="detail-item">
+              <div class="detail-chip">
                 <span class="detail-label">费用</span>
                 <span class="detail-value">{{ course.fee === 0 ? '免费' : '¥' + course.fee }}</span>
               </div>
-              <div class="detail-item">
+              <div class="detail-chip">
                 <span class="detail-label">时间</span>
                 <span class="detail-value">{{ formatDate(course.startDate) }} - {{ formatDate(course.endDate) }}</span>
               </div>
             </div>
           </div>
-          
+
           <div class="course-progress">
             <div class="progress-info">
               <span>报名进度</span>
               <span>{{ course.currentParticipants }}/{{ course.maxParticipants }}</span>
             </div>
             <div class="progress-bar">
-              <div 
+              <div
                 class="progress-fill"
                 :style="{ width: getCourseProgress(course) + '%' }"
               ></div>
             </div>
           </div>
-          
+
           <div class="course-tags">
-            <span 
-              v-for="tag in course.tags" 
+            <span
+              v-for="tag in course.tags"
               :key="tag"
               class="course-tag"
             >
@@ -797,50 +786,29 @@ onMounted(() => {
             </span>
           </div>
         </div>
-        
+
         <div class="course-actions">
-          <button
-            class="action-btn view-btn"
-            @click="viewCourseDetail(course)"
-          >
-            查看详情
-          </button>
-
-          <button
-            class="action-btn view-btn"
-            @click="viewParticipants(course)"
-          >
-            参与者
-          </button>
-
-          <button
-            class="action-btn edit-btn"
-            @click="editCourse(course)"
-          >
-            编辑
-          </button>
-
-          <button
-            class="action-btn delete-btn"
-            @click="deleteCourse(course.id)"
-          >
-            删除
-          </button>
+          <button class="action-btn ghost-btn" @click="viewCourseDetail(course)">查看详情</button>
+          <button class="action-btn ghost-btn" @click="viewParticipants(course)">参与者</button>
+          <button class="action-btn ghost-btn" @click="editCourse(course)">编辑</button>
+          <button class="action-btn ghost-red-btn" @click="deleteCourse(course.id)">删除</button>
         </div>
+
+        <div class="card-bottom-bar"></div>
       </div>
     </div>
 
-    <!-- 课程详情弹窗 -->
+    <!-- Course Detail Modal -->
     <div v-if="showCourseDetail" class="modal-overlay" @click="closeModal">
-      <div class="course-detail-modal" @click.stop>
+      <div class="modal modal--detail" @click.stop>
         <div class="modal-header">
           <h2>培训详情</h2>
           <button class="close-btn" @click="closeModal">×</button>
         </div>
-        
+
         <div v-if="selectedCourse" class="modal-content">
           <div class="detail-section">
-            <h3>基本信息</h3>
+            <h3 class="detail-section-title">基本信息</h3>
             <div class="detail-grid">
               <div class="detail-item">
                 <span class="label">培训标题</span>
@@ -864,9 +832,9 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          
+
           <div class="detail-section">
-            <h3>讲师信息</h3>
+            <h3 class="detail-section-title">讲师信息</h3>
             <div class="instructor-profile">
               <div class="instructor-avatar large">{{ selectedCourse.instructor.name.charAt(0) }}</div>
               <div class="instructor-info">
@@ -874,8 +842,8 @@ onMounted(() => {
                 <p>{{ selectedCourse.instructor.title }}</p>
                 <p>{{ selectedCourse.instructor.hospital }}</p>
                 <div class="expertise-tags">
-                  <span 
-                    v-for="expertise in selectedCourse.instructor.expertise" 
+                  <span
+                    v-for="expertise in selectedCourse.instructor.expertise"
                     :key="expertise"
                     class="expertise-tag"
                   >
@@ -885,37 +853,37 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          
+
           <div v-if="selectedCourse.description" class="detail-section">
-            <h3>培训描述</h3>
+            <h3 class="detail-section-title">培训描述</h3>
             <p class="description-text">{{ selectedCourse.description }}</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 创建课程弹窗 -->
+    <!-- Create / Edit Modal -->
     <div v-if="showCreateForm" class="modal-overlay" @click="closeModal">
-      <div class="create-form-modal" @click.stop>
+      <div class="modal modal--form" @click.stop>
         <div class="modal-header">
           <h2>创建新培训</h2>
           <button class="close-btn" @click="closeModal">×</button>
         </div>
-        
+
         <form @submit.prevent="editingCourse ? updateCourse() : submitNewCourse()" class="create-form">
           <div class="form-section">
             <h3>基本信息</h3>
-            
+
             <div class="form-group">
               <label>培训标题 *</label>
               <input v-model="newCourse.title" type="text" required>
             </div>
-            
+
             <div class="form-group">
               <label>培训描述</label>
               <textarea v-model="newCourse.description" rows="3" placeholder="请输入培训描述（可选）"></textarea>
             </div>
-            
+
             <div class="form-row">
               <div class="form-group">
                 <label>培训类型 *</label>
@@ -926,19 +894,18 @@ onMounted(() => {
                 </select>
               </div>
             </div>
-            
+
             <div class="form-row">
               <div class="form-group">
                 <label>培训时长（小时） *</label>
                 <input v-model.number="newCourse.durationHours" type="number" min="1" required>
               </div>
-
               <div class="form-group">
                 <label>最大参与人数 *</label>
                 <input v-model.number="newCourse.maxParticipants" type="number" min="1" required>
               </div>
             </div>
-            
+
             <div class="form-row">
               <div class="form-group">
                 <label>开始日期 *</label>
@@ -946,9 +913,7 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          
 
-          
           <div class="form-actions">
             <button type="button" class="cancel-btn" @click="closeModal">取消</button>
             <button type="submit" class="submit-btn" :disabled="loading">
@@ -959,20 +924,20 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 参与者列表弹窗 -->
+    <!-- Participants Modal -->
     <div v-if="showParticipants" class="modal-overlay" @click="closeModal">
-      <div class="participants-modal" @click.stop>
+      <div class="modal modal--participants" @click.stop>
         <div class="modal-header">
           <h2>参与者管理</h2>
           <button class="close-btn" @click="closeModal">×</button>
         </div>
-        
+
         <div v-if="selectedCourse" class="modal-content">
           <div class="participants-summary">
             <h3>{{ selectedCourse.title }}</h3>
             <p>已报名：{{ selectedCourse.currentParticipants }}/{{ selectedCourse.maxParticipants }}人</p>
           </div>
-          
+
           <div v-if="participants[selectedCourse.id]" class="participants-table">
             <div class="table-header">
               <div class="header-cell">姓名</div>
@@ -983,10 +948,10 @@ onMounted(() => {
               <div class="header-cell">报名时间</div>
               <div class="header-cell">状态</div>
             </div>
-            
+
             <div class="table-body">
-              <div 
-                v-for="participant in participants[selectedCourse.id]" 
+              <div
+                v-for="participant in participants[selectedCourse.id]"
                 :key="participant.id"
                 class="table-row"
               >
@@ -1007,7 +972,7 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          
+
           <div v-else class="no-participants">
             <p>暂无参与者</p>
           </div>
@@ -1018,656 +983,656 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* ============================================================
+   Training Management — Amber Design System
+   ============================================================ */
 .training-management-container {
-  max-width: 1400px;
+  max-width: 1360px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 28px 32px 48px;
 }
 
-/* 页面头部 */
-.page-header {
-  text-align: center;
-  margin-bottom: 2rem;
+/* ---- Hero Header ---- */
+.hero-header {
+  position: relative;
+  background: linear-gradient(160deg, #1e293b 0%, #334155 55%, #3b4a63 100%);
+  border-radius: 18px;
+  padding: 44px 48px 40px;
+  margin-bottom: 28px;
+  overflow: hidden;
 }
 
-.page-header h1 {
-  font-size: 2.5rem;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-}
-
-.header-desc {
-  color: #666;
-  font-size: 1.1rem;
-}
-
-/* 统计卡片 */
-.statistics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.stat-icon {
-  width: 50px;
-  height: 50px;
+.hero-deco {
+  position: absolute;
   border-radius: 50%;
+  background: #fff;
+  opacity: 0.07;
+  pointer-events: none;
+}
+.hero-deco--1 { width: 260px; height: 260px; top: -80px; right: -60px; }
+.hero-deco--2 { width: 140px; height: 140px; bottom: -40px; left: 60px; }
+.hero-deco--3 { width: 80px; height: 80px; top: 30px; right: 220px; }
+
+.hero-body {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-badge {
+  display: inline-block;
+  background: rgba(245, 158, 66, 0.2);
+  color: #f59e42;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 16px;
+  border-radius: 100px;
+  margin-bottom: 14px;
+  letter-spacing: 0.5px;
+}
+
+.hero-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 8px;
+  letter-spacing: -0.5px;
+}
+
+.hero-subtitle {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 15px;
+  margin: 0 0 28px;
+}
+
+.hero-stats {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.stat-chip {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 13px;
+  padding: 8px 18px;
 }
 
-.stat-icon.total {
-  background: #e3f2fd;
+.chip-num {
+  font-size: 20px;
+  font-weight: 750;
+  color: #1e293b;
 }
 
-.stat-icon.published {
-  background: #e8f5e8;
-}
-
-.stat-icon.ongoing {
-  background: #fff3e0;
-}
-
-.stat-icon.participants {
-  background: #f3e5f5;
-}
-
-.stat-number {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #2c3e50;
-}
-
-.stat-label {
-  color: #666;
-  font-size: 0.9rem;
-}
-
-/* 操作栏 */
-.action-bar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1rem;
+.chip-label {
+  font-size: 13px;
+  color: #64748b;
 }
 
 .create-btn {
-  background: #42b883;
-  color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #f59e42 0%, #e8890a 100%);
+  color: #fff;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.3s ease;
-}
-
-.create-btn:hover {
-  background: #369870;
-}
-
-/* 筛选区域 */
-.filters-section {
-  background: white;
-  padding: 1.5rem;
+  padding: 11px 28px;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  margin-bottom: 2rem;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  transition: transform 0.18s, box-shadow 0.18s;
+  box-shadow: 0 4px 14px rgba(245, 158, 66, 0.25);
+}
+.create-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 158, 66, 0.35);
+}
+
+/* ---- Filters Card ---- */
+.filters-card {
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
 }
 
 .filters-row {
   display: flex;
-  gap: 1rem;
+  gap: 14px;
   align-items: center;
   flex-wrap: wrap;
 }
 
 .search-group {
   flex: 1;
-  min-width: 300px;
+  min-width: 280px;
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  pointer-events: none;
 }
 
 .search-input {
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
+  padding: 10px 14px 10px 40px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #1e293b;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-
+.search-input::placeholder { color: #94a3b8; }
 .search-input:focus {
   outline: none;
-  border-color: #42b883;
+  border-color: #f59e42;
+  box-shadow: 0 0 0 3px rgba(245, 158, 66, 0.1);
 }
 
 .filter-group {
   display: flex;
-  gap: 0.5rem;
+  gap: 10px;
   align-items: center;
 }
 
 .filter-select {
-  padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: white;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #1e293b;
   cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.filter-select:focus {
+  outline: none;
+  border-color: #f59e42;
+  box-shadow: 0 0 0 3px rgba(245, 158, 66, 0.1);
 }
 
-/* 课程卡片 */
+/* ---- Section Heading ---- */
+.section-heading {
+  margin-bottom: 20px;
+}
+.section-heading h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 10px;
+}
+.section-line {
+  height: 3px;
+  width: 48px;
+  background: linear-gradient(90deg, #f59e42, #e8890a);
+  border-radius: 2px;
+}
+
+/* ---- Course Cards ---- */
 .courses-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 1.5rem;
+  gap: 22px;
 }
 
 .course-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  position: relative;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
   overflow: hidden;
-  transition: transform 0.3s ease;
+  transition: transform 0.22s, box-shadow 0.22s;
 }
-
 .course-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
+}
+.course-card:hover .card-bottom-bar {
+  opacity: 1;
+}
+
+.card-bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f59e42, #e8890a);
+  opacity: 0;
+  transition: opacity 0.25s;
 }
 
 .course-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .course-type {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
-.type-icon {
-  font-size: 1.2rem;
+.type-icon-box {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(245, 158, 66, 0.08);
+  border-radius: 9px;
+  font-size: 16px;
 }
 
 .type-text {
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 .status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  border: 1px solid currentColor;
+  padding: 4px 14px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 .course-content {
-  padding: 1.5rem;
+  padding: 20px;
 }
 
 .course-title {
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-  font-size: 1.2rem;
-  line-height: 1.4;
+  color: #1e293b;
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .course-description {
-  color: #666;
-  margin-bottom: 1.5rem;
-  line-height: 1.6;
+  color: #64748b;
+  margin-bottom: 18px;
+  font-size: 13.5px;
+  line-height: 1.65;
   display: -webkit-box;
-  line-clamp: 3;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 .course-meta {
-  margin-bottom: 1.5rem;
+  margin-bottom: 16px;
 }
 
 .instructor-info {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 .instructor-avatar {
-  width: 50px;
-  height: 50px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, #f59e42 0%, #e8890a 100%);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
 }
 
 .instructor-details {
   flex: 1;
+  min-width: 0;
 }
 
 .instructor-name {
-  font-weight: 500;
-  color: #2c3e50;
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
 }
 
 .instructor-title {
-  color: #42b883;
-  font-size: 0.9rem;
+  color: #f59e42;
+  font-size: 12.5px;
 }
 
 .instructor-hospital {
-  color: #666;
-  font-size: 0.8rem;
+  color: #94a3b8;
+  font-size: 12px;
 }
 
 .course-details {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.detail-item {
-  display: flex;
-  justify-content: space-between;
+.detail-chip {
+  display: inline-flex;
   align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid #eef0f4;
+  border-radius: 8px;
+  font-size: 12.5px;
 }
 
 .detail-label {
-  color: #666;
-  font-size: 0.9rem;
+  color: #94a3b8;
 }
 
 .detail-value {
-  color: #2c3e50;
-  font-weight: 500;
-  font-size: 0.9rem;
+  color: #1e293b;
+  font-weight: 600;
 }
 
 .course-progress {
-  margin-bottom: 1rem;
+  margin: 14px 0;
 }
 
 .progress-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-  color: #666;
+  margin-bottom: 6px;
+  font-size: 12.5px;
+  color: #64748b;
 }
 
 .progress-bar {
-  height: 6px;
-  background: #e0e0e0;
+  height: 5px;
+  background: #f1f5f9;
   border-radius: 3px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #42b883, #369870);
-  transition: width 0.3s ease;
+  background: linear-gradient(90deg, #f59e42, #e8890a);
+  border-radius: 3px;
+  transition: width 0.3s;
 }
 
 .course-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 6px;
+  margin-bottom: 4px;
 }
 
 .course-tag {
-  background: #e8f5e8;
-  color: #42b883;
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  background: rgba(245, 158, 66, 0.08);
+  color: #e8890a;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .course-actions {
   display: flex;
-  gap: 0.5rem;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #f0f0f0;
-  background: #f8f9fa;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid #f1f5f9;
 }
 
 .action-btn {
   flex: 1;
-  padding: 0.5rem;
-  border: none;
-  border-radius: 6px;
+  padding: 7px 0;
+  border-radius: 9px;
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.18s;
 }
 
-.view-btn {
-  background: #2196f3;
-  color: white;
+.ghost-btn {
+  background: transparent;
+  border: 1.5px solid #e2e8f0;
+  color: #475569;
+}
+.ghost-btn:hover {
+  border-color: #f59e42;
+  color: #f59e42;
+  background: rgba(245, 158, 66, 0.04);
 }
 
-.view-btn:hover {
-  background: #1976d2;
+.ghost-red-btn {
+  background: transparent;
+  border: 1.5px solid #fecaca;
+  color: #ef4444;
+}
+.ghost-red-btn:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.04);
 }
 
-.participants-btn {
-  background: #ff9800;
-  color: white;
-}
-
-.participants-btn:hover {
-  background: #f57c00;
-}
-
-.edit-btn {
-  background: #2196f3;
-  color: white;
-}
-
-.edit-btn:hover {
-  background: #1976d2;
-}
-
-.delete-btn {
-  background: #f44336;
-  color: white;
-}
-
-.delete-btn:hover {
-  background: #d32f2f;
-}
-
-/* 弹窗样式 */
+/* ---- Modals ---- */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
+  padding: 20px;
 }
 
-.course-detail-modal,
-.create-form-modal,
-.participants-modal {
-  background: white;
-  border-radius: 12px;
+.modal {
+  background: #fff;
+  border-radius: 16px;
   max-width: 800px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
+}
+.modal--participants {
+  max-width: 960px;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .modal-header h2 {
   margin: 0;
-  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .close-btn {
-  background: none;
+  background: #f1f5f9;
   border: none;
-  font-size: 2rem;
-  cursor: pointer;
-  color: #999;
-  padding: 0;
-  width: 30px;
-  height: 30px;
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  color: #64748b;
+  transition: background 0.15s, color 0.15s;
 }
-
 .close-btn:hover {
-  color: #666;
+  background: #e2e8f0;
+  color: #1e293b;
 }
 
 .modal-content {
-  padding: 1.5rem;
+  padding: 24px;
 }
 
-/* 详情页样式 */
+/* ---- Detail Modal Sections ---- */
 .detail-section {
-  margin-bottom: 2rem;
+  margin-bottom: 24px;
 }
 
-.detail-section h3 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
-  border-bottom: 2px solid #42b883;
-  padding-bottom: 0.5rem;
+.detail-section-title {
+  color: #1e293b;
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f59e42;
 }
 
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: 14px;
 }
 
 .detail-item {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 4px;
 }
 
 .detail-item .label {
-  color: #666;
-  font-size: 0.9rem;
+  color: #94a3b8;
+  font-size: 12.5px;
 }
 
 .detail-item .value {
-  color: #2c3e50;
-  font-weight: 500;
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 .instructor-profile {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 18px;
 }
 
 .instructor-avatar.large {
-  width: 80px;
-  height: 80px;
-  font-size: 2rem;
+  width: 64px;
+  height: 64px;
+  font-size: 22px;
+  border-radius: 16px;
 }
 
 .instructor-info h4 {
-  margin: 0 0 0.5rem 0;
-  color: #2c3e50;
+  margin: 0 0 4px;
+  color: #1e293b;
+  font-size: 16px;
 }
 
 .instructor-info p {
-  margin: 0 0 0.25rem 0;
-  color: #666;
+  margin: 0 0 2px;
+  color: #64748b;
+  font-size: 13.5px;
 }
 
 .expertise-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .expertise-tag {
-  background: #e8f5e8;
-  color: #42b883;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  background: rgba(245, 158, 66, 0.08);
+  color: #e8890a;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .description-text {
-  color: #666;
-  line-height: 1.6;
+  color: #64748b;
+  line-height: 1.7;
+  font-size: 14px;
   margin: 0;
 }
 
-.audience-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.audience-tag {
-  background: #f3e5f5;
-  color: #9c27b0;
-  padding: 0.3rem 0.75rem;
-  border-radius: 16px;
-  font-size: 0.9rem;
-}
-
-.schedule-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.schedule-item {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.schedule-time {
-  display: flex;
-  flex-direction: column;
-  min-width: 120px;
-}
-
-.schedule-time .date {
-  font-weight: 500;
-  color: #2c3e50;
-}
-
-.schedule-time .time {
-  color: #666;
-  font-size: 0.9rem;
-}
-
-.schedule-content {
-  flex: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.schedule-content .topic {
-  color: #2c3e50;
-  font-weight: 500;
-}
-
-.schedule-content .duration {
-  color: #666;
-  font-size: 0.9rem;
-}
-
-.location-text,
-.meeting-link {
-  color: #2c3e50;
-  margin: 0;
-}
-
-.materials-list,
-.requirements-list {
-  margin: 0;
-  padding-left: 1.5rem;
-}
-
-.materials-list li,
-.requirements-list li {
-  color: #666;
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
-
-/* 表单样式 */
+/* ---- Form Styles ---- */
 .create-form {
-  padding: 1.5rem;
+  padding: 24px;
 }
 
 .form-section {
-  margin-bottom: 2rem;
+  margin-bottom: 24px;
 }
 
 .form-section h3 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
+  color: #1e293b;
+  margin-bottom: 16px;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: 14px;
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 14px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
-  color: #2c3e50;
-  font-weight: 500;
+  margin-bottom: 6px;
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 13.5px;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
+  padding: 10px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #1e293b;
+  background: #f8fafc;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #42b883;
+  border-color: #f59e42;
+  box-shadow: 0 0 0 3px rgba(245, 158, 66, 0.1);
+  background: #fff;
 }
 
 .form-group textarea {
@@ -1677,66 +1642,81 @@ onMounted(() => {
 
 .form-actions {
   display: flex;
-  gap: 1rem;
+  gap: 12px;
   justify-content: flex-end;
-  margin-top: 2rem;
+  margin-top: 24px;
 }
 
 .form-actions .cancel-btn,
 .form-actions .submit-btn {
-  padding: 0.75rem 1.5rem;
+  padding: 10px 24px;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.3s ease;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.18s;
 }
 
 .form-actions .cancel-btn {
-  background: #f0f0f0;
-  color: #666;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1.5px solid #e2e8f0;
 }
-
 .form-actions .cancel-btn:hover {
-  background: #e0e0e0;
+  background: #e2e8f0;
 }
 
 .form-actions .submit-btn {
-  background: #42b883;
-  color: white;
+  background: linear-gradient(135deg, #f59e42 0%, #e8890a 100%);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(245, 158, 66, 0.25);
 }
-
 .form-actions .submit-btn:hover {
-  background: #369870;
+  box-shadow: 0 6px 20px rgba(245, 158, 66, 0.35);
+  transform: translateY(-1px);
+}
+.form-actions .submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
-/* 参与者表格 */
+/* ---- Participants Table ---- */
 .participants-summary {
-  margin-bottom: 2rem;
+  margin-bottom: 20px;
 }
-
 .participants-summary h3 {
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
+  color: #1e293b;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.participants-summary p {
+  color: #64748b;
+  font-size: 13.5px;
+  margin: 0;
 }
 
-.participants-summary p {
-  color: #666;
-  margin: 0;
+.participants-table {
+  border: 1px solid #eef0f4;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .participants-table .table-header {
   display: grid;
   grid-template-columns: 1fr 1fr 1.5fr 1fr 1.5fr 1fr 0.8fr;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
+  background: #f8fafc;
 }
 
 .participants-table .header-cell {
-  padding: 1rem;
+  padding: 12px 14px;
   font-weight: 600;
-  color: #2c3e50;
-  border-right: 1px solid #e0e0e0;
+  font-size: 12.5px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
   text-align: center;
 }
 
@@ -1748,128 +1728,120 @@ onMounted(() => {
 .participants-table .table-row {
   display: grid;
   grid-template-columns: 1fr 1fr 1.5fr 1fr 1.5fr 1fr 0.8fr;
-  border-bottom: 1px solid #f0f0f0;
+  border-top: 1px solid #f1f5f9;
+  transition: background 0.12s;
+}
+.participants-table .table-row:nth-child(even) {
+  background: #fafbfc;
+}
+.participants-table .table-row:hover {
+  background: rgba(245, 158, 66, 0.03);
 }
 
 .participants-table .table-cell {
-  padding: 1rem;
-  border-right: 1px solid #f0f0f0;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  color: #2c3e50;
+  color: #1e293b;
+  font-size: 13.5px;
 }
 
 .participant-status {
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 .participant-status.registered {
-  background: #fff3e0;
-  color: #ff9800;
+  background: rgba(245, 158, 66, 0.1);
+  color: #e8890a;
 }
-
 .participant-status.confirmed {
-  background: #e8f5e8;
-  color: #4caf50;
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
 }
-
 .participant-status.attended {
-  background: #e3f2fd;
-  color: #2196f3;
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
 }
-
 .participant-status.absent {
-  background: #ffebee;
-  color: #f44336;
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
 }
-
 .participant-status.cancelled {
-  background: #f5f5f5;
-  color: #9e9e9e;
+  background: #f1f5f9;
+  color: #94a3b8;
 }
 
 .no-participants {
   text-align: center;
-  padding: 2rem;
-  color: #666;
+  padding: 40px 20px;
+  color: #94a3b8;
+  font-size: 14px;
 }
 
-/* 响应式设计 */
+/* ---- Responsive ---- */
 @media (max-width: 768px) {
   .training-management-container {
-    padding: 1rem;
+    padding: 16px;
   }
-  
-  .page-header h1 {
-    font-size: 2rem;
+  .hero-header {
+    padding: 28px 20px 24px;
+    border-radius: 14px;
   }
-  
-  .statistics-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  .hero-title {
+    font-size: 1.5rem;
   }
-  
+  .hero-stats {
+    gap: 8px;
+  }
+  .stat-chip {
+    padding: 6px 12px;
+  }
   .filters-row {
     flex-direction: column;
     align-items: stretch;
   }
-  
   .search-group {
     min-width: auto;
   }
-  
   .filter-group {
-    justify-content: space-between;
+    flex-wrap: wrap;
   }
-  
   .courses-grid {
     grid-template-columns: 1fr;
   }
-  
   .course-details {
-    grid-template-columns: 1fr;
-  }
-  
-  .course-actions {
     flex-direction: column;
   }
-  
+  .course-actions {
+    flex-wrap: wrap;
+  }
   .detail-grid {
     grid-template-columns: 1fr;
   }
-  
   .instructor-profile {
     flex-direction: column;
     text-align: center;
   }
-  
-  .schedule-item {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
   .form-row {
     grid-template-columns: 1fr;
   }
-  
   .form-actions {
     flex-direction: column;
   }
-  
   .participants-table .table-header,
   .participants-table .table-row {
     grid-template-columns: 1fr;
   }
-  
   .participants-table .header-cell,
   .participants-table .table-cell {
-    border-right: none;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid #f1f5f9;
     text-align: left;
   }
 }

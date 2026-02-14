@@ -7,6 +7,16 @@ import type { AuthRequest } from '../auth/auth-user';
 
 const MAX_VIDEO = 200 * 1024 * 1024; // 200MB
 
+const hasCjk = (value: string) => /[\u4e00-\u9fff]/.test(value);
+
+const normalizeUploadedOriginalName = (value: string) => {
+  if (!value) return value;
+  const decoded = Buffer.from(value, 'latin1').toString('utf8');
+  if (!decoded || decoded.includes('�')) return value;
+  if (!hasCjk(value) && hasCjk(decoded)) return decoded;
+  return value;
+};
+
 export const casesMulterConfig: MulterOptions = {
   storage: diskStorage({
     destination: (req, _file, cb) => {
@@ -27,9 +37,13 @@ export const casesMulterConfig: MulterOptions = {
     },
     filename: (_req, file, cb) => {
       const timestamp = Date.now();
-      const ext = path.extname(file.originalname);
+      const normalizedOriginalName = normalizeUploadedOriginalName(
+        file.originalname,
+      );
+      file.originalname = normalizedOriginalName;
+      const ext = path.extname(normalizedOriginalName);
       const safeBase = path
-        .basename(file.originalname, ext)
+        .basename(normalizedOriginalName, ext)
         .replace(/[^a-zA-Z0-9_-]/g, '_');
       cb(null, `${timestamp}_${safeBase}${ext}`);
     },

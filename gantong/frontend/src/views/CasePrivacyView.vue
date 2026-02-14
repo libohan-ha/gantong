@@ -1,583 +1,347 @@
-<!--
-  病例隐私保护页面（医院端 / 医生端）
-
-  功能概述：
-    1. 「安全上传」标签页 —— 根据隐私规则选择上传类型，填写病例信息并上传附件
-    2. 「病例管理」标签页 —— 查看、搜索、筛选已有病例，支持编辑和删除
-    3. 「隐私规则」标签页 —— 展示各类病例上传的隐私保护要求和操作指导
-
-  数据来源：
-    - 医生个人资料：GET /doctors/me/profile（用于显示医生认证信息）
-    - 病例列表：GET /cases/mine（当前医生的病例）
-    - 上传病例：POST /cases（FormData 多文件上传）
-    - 更新病例：PATCH /cases/:id
-    - 删除病例：DELETE /cases/:id
-
-  角色限制：SUPER_ADMIN / DOCTOR（由路由守卫控制）
--->
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref, type Component } from 'vue'
+import { API_BASE_URL } from '@/services/api'
 import { getMyProfile, type DoctorProfile as Profile } from '@/services/doctor'
-import { uploadCase, getMyCases, updateCase as apiUpdateCase, deleteCase as apiDeleteCase, type BackendCaseRecord } from '@/services/cases'
+import {
+  addCaseFiles,
+  deleteCase as apiDeleteCase,
+  getMyCases,
+  removeCaseFile,
+  type BackendCaseFile,
+  type BackendCaseRecord,
+  type CaseType,
+  updateCase as apiUpdateCase,
+  uploadCase,
+} from '@/services/cases'
+import {
+  Lock,
+  Upload,
+  FolderOpened,
+  Document,
+  VideoCamera,
+  Picture,
+  Download,
+  Edit,
+  Delete,
+  View,
+  Plus,
+  Close,
+  ArrowRight,
+} from '@element-plus/icons-vue'
 
-// ==================== 类型定义 ====================
-
-/** 病例类型：线上诊疗 / 线下门诊 */
-type CaseType = 'online' | 'offline'
-
-/** 身体部位类型：头部 / 四肢 / 躯干 / 关节 / 局部 / 功能性 */
-type BodyPartType = 'head' | 'limbs' | 'torso' | 'joints' | 'partial' | 'functional'
-
-/** 隐私敏感级别：低 / 中 / 高 / 极高 */
-type PrivacyLevel = 'low' | 'medium' | 'high' | 'critical'
-
-/** 病例状态：草稿 / 已上传 / 审核中 / 已通过 / 已拒绝 */
-type CaseStatus = 'draft' | 'uploaded' | 'reviewed' | 'approved' | 'rejected'
-
-/** 隐私保护设置（前端配置，暂未对接后端存储） */
-interface PrivacySettings {
-  /** 是否匿名化患者身份 */
-  anonymizePatient: boolean
-  /** 是否隐藏个人信息 */
-  hidePersonalInfo: boolean
-  /** 是否限制访问权限 */
-  limitedAccess: boolean
-  /** 是否加密文件 */
-  encryptFiles: boolean
-  /** 数据保留期限（天数） */
-  retentionPeriod: number
-  /** 访问级别：公开 / 医院内 / 科室内 / 私密 */
-  accessLevel: 'public' | 'hospital' | 'department' | 'private'
-  /** 是否允许分享 */
-  allowSharing: boolean
-  /** 是否添加水印 */
-  watermark: boolean
-}
-
-/** 上传规则配置（定义不同类型病例的隐私要求） */
+type CaseStatus = BackendCaseRecord['status']
+type TabKey = 'upload' | 'manage' | 'rules'
+type ApiError = { response?: { data?: { message?: string | string[] } } }
 interface UploadRule {
-  /** 规则ID */
   id: string
-  /** 规则名称 */
   name: string
-  /** 规则描述 */
   description: string
-  /** 允许拍摄的身体部位 */
-  allowedBodyParts: BodyPartType[]
-  /** 最大文件大小（MB） */
-  maxFileSize: number
-  /** 允许的文件 MIME 类型 */
+  maxFileSizeMB: number
   allowedFileTypes: string[]
-  /** 要求的隐私级别 */
-  requiredPrivacyLevel: PrivacyLevel
-  /** 上传操作指导说明 */
-  guidelines: string[]
-  /** 示例说明 */
-  examples: string[]
+  icon: Component
+  color: string
+  bg: string
+  tag: string
 }
 
-// ==================== 医生信息加载 ====================
+const rules: UploadRule[] = [
+  { id: 'partial', name: '局部症状上传', description: '只上传症状相关片段，避免暴露隐私。', maxFileSizeMB: 50, allowedFileTypes: ['image/jpeg', 'image/png', 'video/mp4', 'application/pdf'], icon: Picture, color: '#5b8def', bg: '#eef3ff', tag: '隐私' },
+  { id: 'functional', name: '功能评估上传', description: '上传训练过程、动作评估素材。', maxFileSizeMB: 100, allowedFileTypes: ['video/mp4', 'image/jpeg', 'image/png'], icon: VideoCamera, color: '#e67e5a', bg: '#fff3ee', tag: '评估' },
+  { id: 'document', name: '匿名文档上传', description: '上传脱敏报告和检查文档。', maxFileSizeMB: 20, allowedFileTypes: ['application/pdf', 'image/jpeg', 'image/png'], icon: Document, color: '#4ec3a0', bg: '#edfaf5', tag: '文档' },
+]
+const DEFAULT_ACCEPT = ['image/jpeg', 'image/png', 'application/pdf', 'video/mp4']
+const DEFAULT_MAX_MB = 200
 
-/** 当前登录医生的个人资料 */
 const doctorProfile = ref<Profile | null>(null)
-/** 医生信息加载状态 */
-const loadingDoctor = ref(false)
-
-/** 从后端加载当前医生的个人资料（用于页面顶部认证卡片展示） */
-const loadDoctorProfile = async () => {
-  try {
-    loadingDoctor.value = true
-    doctorProfile.value = await getMyProfile()
-  } finally {
-    loadingDoctor.value = false
-  }
-}
-
-/** 组件挂载时加载医生信息和病例列表 */
-onMounted(() => {
-  loadDoctorProfile()
-  loadMyCases()
-})
-
-// ==================== 错误处理 ====================
-
-/** API 错误响应类型 */
-type ApiError = {
-  response?: {
-    data?: {
-      message?: string
-    }
-  }
-}
-
-/**
- * 从 API 错误中提取错误消息
- * @param error - 错误对象
- * @param fallback - 无法提取时的默认提示
- * @returns 错误消息字符串
- */
-const getErrorMessage = (error: unknown, fallback: string) => {
-  const message = (error as ApiError)?.response?.data?.message
-  return typeof message === 'string' && message.trim() ? message : fallback
-}
-
-// ==================== 上传规则配置（前端静态配置） ====================
-
-/**
- * 预定义的三种上传规则，对应不同隐私敏感度：
- * 1. 局部病症上传（中敏感）—— 仅拍摄局部区域，避免面部
- * 2. 功能性评估上传（低敏感）—— 功能性动作视频
- * 3. 匿名化文档上传（高敏感）—— 匿名化处理后的文档
- */
-const uploadRules = ref<UploadRule[]>([
-  {
-    id: 'rule_partial',
-    name: '局部病症上传',
-    description: '只允许上传患者身体的特定局部区域，保护整体隐私',
-    allowedBodyParts: ['limbs', 'joints', 'partial'],
-    maxFileSize: 50,
-    allowedFileTypes: ['image/jpeg', 'image/png', 'video/mp4'],
-    requiredPrivacyLevel: 'medium',
-    guidelines: [
-      '仅拍摄病症相关的局部区域',
-      '避免包含患者面部或身份标识',
-      '确保背景环境中无个人信息',
-      '图像质量要清晰但不过度暴露'
-    ],
-    examples: ['手部动作范围', '足部步态分析', '关节活动度']
-  },
-  {
-    id: 'rule_functional',
-    name: '功能性评估上传',
-    description: '上传功能性动作和行为评估，不涉及敏感身体部位',
-    allowedBodyParts: ['functional', 'partial'],
-    maxFileSize: 100,
-    allowedFileTypes: ['video/mp4', 'video/avi'],
-    requiredPrivacyLevel: 'low',
-    guidelines: [
-      '专注于功能性动作演示',
-      '可包含治疗师指导过程',
-      '确保患者穿着适当',
-      '避免录制个人身份信息'
-    ],
-    examples: ['平衡训练视频', '精细动作练习', '感统训练过程']
-  },
-  {
-    id: 'rule_document',
-    name: '匿名化文档上传',
-    description: '上传经过匿名化处理的评估报告和诊断文档',
-    allowedBodyParts: ['head', 'limbs', 'torso', 'joints'],
-    maxFileSize: 20,
-    allowedFileTypes: ['application/pdf', 'image/jpeg', 'image/png'],
-    requiredPrivacyLevel: 'high',
-    guidelines: [
-      '移除所有个人身份信息',
-      '使用代码或编号替代姓名',
-      '隐藏具体日期，使用相对时间',
-      '确保文档内容仅包含医学相关信息'
-    ],
-    examples: ['匿名评估报告', '治疗进度记录', '康复计划文档']
-  }
-])
-
-// ==================== 页面状态 ====================
-
-/** 当前激活的标签页：安全上传 / 病例管理 / 隐私规则 */
-const activeTab = ref<'upload' | 'manage' | 'rules'>('upload')
-/** 当前选中的上传规则（点击规则卡片后设置） */
-const selectedRule = ref<UploadRule | null>(null)
-/** 是否显示上传弹窗 */
-const showUploadModal = ref(false)
-/** 是否显示隐私设置面板 */
-const showPrivacySettings = ref(false)
-
-// ==================== 上传表单 ====================
-
-/** 上传表单数据（包含病例信息、文件列表、隐私设置） */
-const uploadForm = ref({
-  title: '',
-  description: '',
-  caseType: 'online' as CaseType,
-  bodyParts: [] as BodyPartType[],
-  symptoms: [] as string[],
-  tags: [] as string[],
-  files: [] as File[],
-  privacySettings: {
-    anonymizePatient: true,
-    hidePersonalInfo: true,
-    limitedAccess: true,
-    encryptFiles: true,
-    retentionPeriod: 365,
-    accessLevel: 'department' as const,
-    allowSharing: false,
-    watermark: true
-  } as PrivacySettings
-})
-
-// 病例记录列表（从后端获取）
+const activeTab = ref<TabKey>('upload')
 const caseRecords = ref<BackendCaseRecord[]>([])
-
-const loadMyCases = async () => {
-  try {
-    const res = await getMyCases({ page: 1, pageSize: 50 })
-    caseRecords.value = res.items
-  } catch (e) {
-    console.error('加载病例失败', e)
-  }
-}
-
-// 编辑弹窗与表单（放在顶层，供模板和事件处理使用）
+const selectedRule = ref<UploadRule | null>(null)
+const showUploadModal = ref(false)
 const showEditModal = ref(false)
+const showDetailModal = ref(false)
+const loadingCases = ref(false)
 const editingCase = ref<BackendCaseRecord | null>(null)
-const editForm = ref<{ title: string; description: string | null }>({ title: '', description: '' })
-
-const openEdit = (rec: BackendCaseRecord) => {
-  editingCase.value = rec
-  editForm.value = { title: rec.title, description: rec.description ?? '' }
-  showEditModal.value = true
-}
-const closeEdit = () => { showEditModal.value = false; editingCase.value = null }
-
-const submitEdit = async () => {
-  if (!editingCase.value) return
-  try {
-    const updated = await apiUpdateCase(editingCase.value.id, {
-      title: editForm.value.title?.trim() || undefined,
-      description: (editForm.value.description ?? '').toString(),
-    })
-    const idx = caseRecords.value.findIndex(c => c.id === updated.id)
-    if (idx >= 0) caseRecords.value[idx] = updated
-    closeEdit()
-  } catch (e) {
-    alert(getErrorMessage(e, '更新失败，请重试'))
-  }
-}
-
-const confirmDelete = async (rec: BackendCaseRecord) => {
-  if (!confirm('确定要删除该病例吗？此操作不可恢复')) return
-  try {
-    await apiDeleteCase(rec.id)
-    caseRecords.value = caseRecords.value.filter(c => c.id !== rec.id)
-  } catch (e) {
-    alert(getErrorMessage(e, '删除失败，请重试'))
-  }
-}
-
-// 筛选状态
+const detailCase = ref<BackendCaseRecord | null>(null)
 const filterStatus = ref<CaseStatus | 'all'>('all')
 const filterType = ref<CaseType | 'all'>('all')
 const searchKeyword = ref('')
 
-// 过滤后的病例记录
-const filteredCaseRecords = computed(() => {
-  let records = caseRecords.value
+const uploadForm = ref({ title: '', description: '', caseType: 'online' as CaseType, files: [] as File[] })
+const editForm = ref({ title: '', description: '', caseType: 'online' as CaseType, newFiles: [] as File[] })
 
-  if (filterStatus.value !== 'all') {
-    records = records.filter(record => record.status === filterStatus.value)
-  }
-
-  // 后端暂未存 caseType 与 tags，这两个筛选/搜索项做降级
-  if (filterType.value !== 'all') {
-    // 无 caseType 信息，忽略类型过滤
-  }
-
-  if (searchKeyword.value) {
-    const keyword = searchKeyword.value.toLowerCase()
-    records = records.filter(record =>
-      (record.title || '').toLowerCase().includes(keyword) ||
-      (record.description || '').toLowerCase().includes(keyword)
-    )
-  }
-
-  return records.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+const errorMessage = (e: unknown, fallback: string) => {
+  const msg = (e as ApiError)?.response?.data?.message
+  if (Array.isArray(msg)) return msg.find((i) => typeof i === 'string' && i.trim()) ?? fallback
+  return typeof msg === 'string' && msg.trim() ? msg : fallback
+}
+const hasCjk = (value: string) => /[\u4e00-\u9fff]/.test(value)
+const decodeLatin1ToUtf8 = (value: string) => {
+  const bytes = Uint8Array.from(Array.from(value), (char) => char.charCodeAt(0) & 0xff)
+  return new TextDecoder('utf-8').decode(bytes)
+}
+const normalizeFilename = (value: string) => {
+  if (!value) return value
+  const decoded = decodeLatin1ToUtf8(value)
+  if (!decoded || decoded.includes('�')) return value
+  if (!hasCjk(value) && hasCjk(decoded)) return decoded
+  return value
+}
+const normalize = (r: BackendCaseRecord): BackendCaseRecord => ({
+  ...r,
+  caseType: r.caseType === 'offline' ? 'offline' : 'online',
+  files: Array.isArray(r.files)
+    ? r.files.map((file) => ({
+      ...file,
+      originalName: normalizeFilename(file.originalName),
+    }))
+    : [],
 })
-
-// 统计数据
-const statistics = computed(() => {
-  const total = caseRecords.value.length
-  const uploaded = caseRecords.value.filter(r => r.status === 'uploaded').length
-  const approved = caseRecords.value.filter(r => r.status === 'approved').length
-  // 后端暂未存 caseType，这里统计值置为 0/0 以兼容 UI
-  const online = 0
-  const offline = 0
-  return { total, uploaded, approved, online, offline }
-})
-
-// 获取状态显示信息
-const getStatusInfo = (status: CaseStatus) => {
-  const statusMap = {
-    draft: { text: '草稿', color: '#666', bgColor: '#f5f5f5', icon: '📝' },
-    uploaded: { text: '已上传', color: '#2196f3', bgColor: '#e3f2fd', icon: '⬆️' },
-    reviewed: { text: '审核中', color: '#ff9800', bgColor: '#fff3e0', icon: '👁️' },
-    approved: { text: '已通过', color: '#4caf50', bgColor: '#e8f5e8', icon: '✅' },
-    rejected: { text: '已拒绝', color: '#f44336', bgColor: '#ffebee', icon: '❌' }
-  }
-  return statusMap[status]
+const upsert = (r: BackendCaseRecord, prepend = false) => {
+  const item = normalize(r)
+  const i = caseRecords.value.findIndex((x) => x.id === item.id)
+  if (i >= 0) caseRecords.value[i] = item
+  else if (prepend) caseRecords.value.unshift(item)
+  else caseRecords.value.push(item)
+  if (editingCase.value?.id === item.id) editingCase.value = item
+  if (detailCase.value?.id === item.id) detailCase.value = item
+}
+const removeById = (id: number) => {
+  caseRecords.value = caseRecords.value.filter((x) => x.id !== id)
+  if (editingCase.value?.id === id) editingCase.value = null
+  if (detailCase.value?.id === id) detailCase.value = null
 }
 
-// 获取隐私级别信息
-const getPrivacyLevelInfo = (level: PrivacyLevel) => {
-  const levelMap = {
-    low: { text: '低敏感', color: '#4caf50', bgColor: '#e8f5e8' },
-    medium: { text: '中敏感', color: '#ff9800', bgColor: '#fff3e0' },
-    high: { text: '高敏感', color: '#f44336', bgColor: '#ffebee' },
-    critical: { text: '极敏感', color: '#9c27b0', bgColor: '#f3e5f5' }
-  }
-  return levelMap[level]
-}
-
-// 格式化文件大小
-const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
-
-// 选择上传规则
-const selectRule = (rule: UploadRule) => {
-  selectedRule.value = rule
-  showUploadModal.value = true
-  // 根据规则预设一些表单值
-  uploadForm.value.bodyParts = [...rule.allowedBodyParts]
-}
-
-// 文件上传处理
-const handleFileUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  if (target.files) {
-    uploadForm.value.files = Array.from(target.files)
-  }
-}
-
-// 提交病例上传
-const submitCaseUpload = async () => {
-  if (!uploadForm.value.title || uploadForm.value.files.length === 0) {
-    alert('请填写标题并至少上传一个文件')
-    return
-  }
-
+const load = async () => {
+  loadingCases.value = true
   try {
-    const created = await uploadCase({
-      title: uploadForm.value.title,
-      description: uploadForm.value.description?.trim() || undefined,
-      files: uploadForm.value.files,
-    })
-
-    // 插入到列表顶部
-    caseRecords.value.unshift(created)
-
-    // 重置表单
-    uploadForm.value = {
-      title: '',
-      description: '',
-      caseType: 'online',
-      bodyParts: [],
-      symptoms: [],
-      tags: [],
-      files: [],
-      privacySettings: {
-        anonymizePatient: true,
-        hidePersonalInfo: true,
-        limitedAccess: true,
-        encryptFiles: true,
-        retentionPeriod: 365,
-        accessLevel: 'department',
-        allowSharing: false,
-        watermark: true
-      }
-    }
-
-    closeModal()
-    alert('病例上传成功！')
+    doctorProfile.value = await getMyProfile()
+    const res = await getMyCases({ page: 1, pageSize: 100 })
+    caseRecords.value = res.items.map((i) => normalize(i))
   } catch (e) {
-    console.error('上传失败', e)
-    alert(getErrorMessage(e, '上传失败，请重试'))
+    console.error(e)
+  } finally {
+    loadingCases.value = false
+  }
+}
+onMounted(load)
+
+const filteredCaseRecords = computed(() => {
+  const kw = searchKeyword.value.trim().toLowerCase()
+  return [...caseRecords.value]
+    .filter((r) => filterStatus.value === 'all' || r.status === filterStatus.value)
+    .filter((r) => filterType.value === 'all' || r.caseType === filterType.value)
+    .filter((r) => !kw || r.title.toLowerCase().includes(kw) || (r.description ?? '').toLowerCase().includes(kw))
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+})
+
+const statistics = computed(() => ({
+  total: caseRecords.value.length,
+  uploaded: caseRecords.value.filter((r) => r.status === 'uploaded').length,
+  approved: caseRecords.value.filter((r) => r.status === 'approved').length,
+  online: caseRecords.value.filter((r) => r.caseType === 'online').length,
+  offline: caseRecords.value.filter((r) => r.caseType === 'offline').length,
+}))
+
+const statusText: Record<CaseStatus, string> = { uploaded: '已上传', reviewed: '审核中', approved: '已通过', rejected: '已拒绝' }
+const statusColor: Record<CaseStatus, string> = { uploaded: '#5b8def', reviewed: '#f59e42', approved: '#4ec3a0', rejected: '#ef4444' }
+const typeText = (t: CaseType) => (t === 'offline' ? '线下门诊' : '线上诊疗')
+const formatDate = (v: string) => new Date(v).toLocaleString('zh-CN')
+const formatSize = (size: number) => {
+  if (!size) return '0 B'
+  const u = ['B', 'KB', 'MB', 'GB']
+  const k = 1024
+  const i = Math.floor(Math.log(size) / Math.log(k))
+  return `${(size / Math.pow(k, i)).toFixed(1)} ${u[i]}`
+}
+
+const validateFiles = (files: File[], maxMB = DEFAULT_MAX_MB, allow = DEFAULT_ACCEPT) =>
+  files.filter((f) => {
+    if (!allow.includes(f.type)) return false
+    if (f.size > maxMB * 1024 * 1024) return false
+    return true
+  })
+
+const onUploadFiles = (e: Event) => {
+  const files = Array.from((e.target as HTMLInputElement).files ?? [])
+  uploadForm.value.files = validateFiles(files, selectedRule.value?.maxFileSizeMB, selectedRule.value?.allowedFileTypes)
+}
+const onEditFiles = (e: Event) => {
+  const files = Array.from((e.target as HTMLInputElement).files ?? [])
+  editForm.value.newFiles = validateFiles(files)
+}
+const rmUploadFile = (idx: number) => uploadForm.value.files.splice(idx, 1)
+const rmEditFile = (idx: number) => editForm.value.newFiles.splice(idx, 1)
+
+const openUpload = (rule: UploadRule) => { selectedRule.value = rule; showUploadModal.value = true }
+const closeUpload = () => { showUploadModal.value = false; selectedRule.value = null; uploadForm.value = { title: '', description: '', caseType: 'online', files: [] } }
+const submitUpload = async () => {
+  if (!uploadForm.value.title.trim()) return alert('请填写病例标题')
+  if (!uploadForm.value.files.length) return alert('请至少上传一个附件')
+  try {
+    const created = await uploadCase({ title: uploadForm.value.title.trim(), description: uploadForm.value.description.trim() || undefined, caseType: uploadForm.value.caseType, files: uploadForm.value.files })
+    upsert(created, true)
+    closeUpload()
+    activeTab.value = 'manage'
+  } catch (e) {
+    alert(errorMessage(e, '上传失败'))
   }
 }
 
-// 关闭弹窗
-const closeModal = () => {
-  showUploadModal.value = false
-  showPrivacySettings.value = false
-  selectedRule.value = null
+const openEdit = (r: BackendCaseRecord) => { editingCase.value = r; editForm.value = { title: r.title, description: r.description ?? '', caseType: r.caseType, newFiles: [] }; showEditModal.value = true }
+const closeEdit = () => { showEditModal.value = false; editingCase.value = null; editForm.value.newFiles = [] }
+const submitEdit = async () => {
+  if (!editingCase.value) return
+  if (!editForm.value.title.trim()) return alert('请填写病例标题')
+  try {
+    let updated = await apiUpdateCase(editingCase.value.id, { title: editForm.value.title.trim(), description: editForm.value.description.trim() || null, caseType: editForm.value.caseType })
+    if (editForm.value.newFiles.length) updated = await addCaseFiles(editingCase.value.id, editForm.value.newFiles)
+    upsert(updated)
+    closeEdit()
+  } catch (e) {
+    alert(errorMessage(e, '保存失败'))
+  }
+}
+const removeExistingFile = async (file: BackendCaseFile) => {
+  if (!editingCase.value) return
+  if (!confirm(`确认删除附件"${file.originalName}"？`)) return
+  try {
+    const updated = await removeCaseFile(editingCase.value.id, file.id)
+    upsert(updated)
+  } catch (e) {
+    alert(errorMessage(e, '删除附件失败'))
+  }
+}
+const removeCase = async (r: BackendCaseRecord) => {
+  if (!confirm('确认删除该病例？')) return
+  try { await apiDeleteCase(r.id); removeById(r.id) } catch (e) { alert(errorMessage(e, '删除失败')) }
 }
 
-// 格式化时间
-const formatDateTime = (dateTime: string) => {
-  return new Date(dateTime).toLocaleString('zh-CN')
-}
+const openDetail = (r: BackendCaseRecord) => { detailCase.value = r; showDetailModal.value = true }
+const closeDetail = () => { showDetailModal.value = false; detailCase.value = null }
 
-// 切换标签页
-const switchTab = (tab: 'upload' | 'manage' | 'rules') => {
-  activeTab.value = tab
+const fileUrl = (storagePath: string) => {
+  if (/^https?:\/\//i.test(storagePath)) return storagePath
+  const n = storagePath.replace(/\\/g, '/')
+  const relative = n.includes('/uploads/') ? (n.split('/uploads/').pop() ?? '') : n.replace(/^uploads\//, '')
+  return `${API_BASE_URL}/static/${relative.replace(/^\/+/, '')}`
+}
+const downloadFile = (f: BackendCaseFile) => {
+  const a = document.createElement('a')
+  a.href = fileUrl(f.storagePath)
+  a.download = f.originalName
+  a.target = '_blank'
+  a.rel = 'noopener'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+}
+const downloadAll = (r: BackendCaseRecord) => {
+  if (!r.files.length) return alert('暂无附件')
+  r.files.forEach((f, i) => setTimeout(() => downloadFile(f), i * 150))
 }
 </script>
 
 <template>
-  <div class="case-privacy-container">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h1>病例隐私保护</h1>
-      <p class="header-desc">安全上传患者局部病例资料，确保隐私保护</p>
-    </div>
-
-    <!-- 医生身份验证卡片 -->
-    <div class="doctor-verification-card">
-      <div class="verification-content">
-        <div class="doctor-info">
-          <div class="doctor-avatar">{{ (doctorProfile?.name || '医').charAt(0) }}</div>
-          <div class="doctor-details">
-            <h3>{{ doctorProfile?.name || '—' }}</h3>
-            <p v-if="doctorProfile?.nickname">昵称：{{ doctorProfile?.nickname }}</p>
-            <p>{{ doctorProfile?.hospital || '—' }}</p>
-          </div>
-        </div>
-        <div class="verification-status">
-          <span class="verified-badge">✅ 已认证</span>
-        </div>
+  <div class="privacy-layout">
+    <section class="hero-header">
+      <div class="hero-inner">
+        <span class="hero-badge">隐私保护</span>
+        <h1>病例隐私保护</h1>
+        <p>安全上传患儿资料，支持线上/线下分类与附件管理</p>
+        <div class="deco-circle c1"></div>
+        <div class="deco-circle c2"></div>
+        <div class="deco-circle c3"></div>
       </div>
-    </div>
+    </section>
 
-    <!-- 统计信息 -->
-    <div class="statistics-grid">
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.total }}</div>
-          <div class="stat-label">总病例数</div>
-        </div>
+    <section class="doctor-card">
+      <div class="doctor-avatar">{{ (doctorProfile?.name || '医').charAt(0) }}</div>
+      <div class="doctor-info">
+        <h3>{{ doctorProfile?.name || '未设置姓名' }}</h3>
+        <p>{{ doctorProfile?.hospital || '未设置医院' }}</p>
       </div>
+      <span class="verified-badge">
+        <el-icon :size="14"><Lock /></el-icon>
+        已认证医师
+      </span>
+    </section>
 
-      <div class="stat-card">
-        <div class="stat-icon">⬆️</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.uploaded }}</div>
-          <div class="stat-label">已上传</div>
-        </div>
+    <section class="stat-strip">
+      <div class="stat-chip">
+        <span class="chip-num">{{ statistics.total }}</span>
+        <span class="chip-label">总病例数</span>
       </div>
-
-      <div class="stat-card">
-        <div class="stat-icon">✅</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.approved }}</div>
-          <div class="stat-label">已通过</div>
-        </div>
+      <div class="stat-chip">
+        <span class="chip-num">{{ statistics.uploaded }}</span>
+        <span class="chip-label">已上传</span>
       </div>
-
-      <div class="stat-card">
-        <div class="stat-icon">🌐</div>
-        <div class="stat-info">
-          <div class="stat-number">{{ statistics.online }}/{{ statistics.offline }}</div>
-          <div class="stat-label">线上/线下</div>
-        </div>
+      <div class="stat-chip">
+        <span class="chip-num">{{ statistics.approved }}</span>
+        <span class="chip-label">已通过</span>
       </div>
-    </div>
+      <div class="stat-chip dual">
+        <span class="chip-num">{{ statistics.online }}<small>/{{ statistics.offline }}</small></span>
+        <span class="chip-label">线上/线下</span>
+      </div>
+    </section>
 
-    <!-- 标签页导航 -->
-    <div class="tab-navigation">
-      <button
-        class="tab-btn"
-        :class="{ active: activeTab === 'upload' }"
-        @click="switchTab('upload')"
-      >
-        📤 安全上传
+    <nav class="tab-nav">
+      <button :class="{ active: activeTab === 'upload' }" @click="activeTab = 'upload'">
+        <el-icon :size="16"><Upload /></el-icon>
+        <span>安全上传</span>
       </button>
-      <button
-        class="tab-btn"
-        :class="{ active: activeTab === 'manage' }"
-        @click="switchTab('manage')"
-      >
-        📋 病例管理
+      <button :class="{ active: activeTab === 'manage' }" @click="activeTab = 'manage'">
+        <el-icon :size="16"><FolderOpened /></el-icon>
+        <span>病例管理</span>
       </button>
-      <button
-        class="tab-btn"
-        :class="{ active: activeTab === 'rules' }"
-        @click="switchTab('rules')"
-      >
-        📜 隐私规则
+      <button :class="{ active: activeTab === 'rules' }" @click="activeTab = 'rules'">
+        <el-icon :size="16"><Document /></el-icon>
+        <span>隐私规则</span>
       </button>
-    </div>
+    </nav>
 
-    <!-- 安全上传标签页 -->
-    <div v-if="activeTab === 'upload'" class="upload-section">
-      <div class="upload-header">
-        <h2>选择上传类型</h2>
-        <p>请根据病例内容选择合适的隐私保护级别</p>
+    <section v-if="activeTab === 'upload'" class="content-panel">
+      <div class="section-title">
+        <h2>选择上传模板</h2>
+        <span class="section-line"></span>
       </div>
-
-      <div class="upload-rules-grid">
-        <div
-          v-for="rule in uploadRules"
-          :key="rule.id"
-          class="rule-card"
-          @click="selectRule(rule)"
-        >
-          <div class="rule-header">
-            <h3>{{ rule.name }}</h3>
-            <span
-              class="privacy-level"
-              :style="{
-                color: getPrivacyLevelInfo(rule.requiredPrivacyLevel).color,
-                backgroundColor: getPrivacyLevelInfo(rule.requiredPrivacyLevel).bgColor
-              }"
-            >
-              {{ getPrivacyLevelInfo(rule.requiredPrivacyLevel).text }}
-            </span>
-          </div>
-
-          <p class="rule-description">{{ rule.description }}</p>
-
-          <div class="rule-details">
-            <div class="rule-info">
-              <span class="info-label">最大文件：</span>
-              <span class="info-value">{{ rule.maxFileSize }}MB</span>
+      <div class="upload-grid">
+        <article v-for="rule in rules" :key="rule.id" class="upload-card" @click="openUpload(rule)">
+          <div class="upload-card-top">
+            <div class="upload-icon" :style="{ background: rule.bg, color: rule.color }">
+              <el-icon :size="24"><component :is="rule.icon" /></el-icon>
             </div>
-            <div class="rule-info">
-              <span class="info-label">允许部位：</span>
-              <span class="info-value">{{ rule.allowedBodyParts.length }}种</span>
-            </div>
+            <span class="upload-tag" :style="{ background: rule.bg, color: rule.color }">{{ rule.tag }}</span>
           </div>
-
-          <div class="rule-guidelines">
-            <h5>上传指导：</h5>
-            <ul>
-              <li v-for="guideline in rule.guidelines.slice(0, 2)" :key="guideline">
-                {{ guideline }}
-              </li>
-            </ul>
+          <h3>{{ rule.name }}</h3>
+          <p>{{ rule.description }}</p>
+          <div class="upload-meta">
+            <span>上限 {{ rule.maxFileSizeMB }}MB</span>
+            <span>{{ rule.allowedFileTypes.length }} 种类型</span>
           </div>
-
-          <button class="upload-btn">选择此类型</button>
-        </div>
+          <div class="upload-footer">
+            <span class="enter-text" :style="{ color: rule.color }">使用模板</span>
+            <el-icon :size="14" :style="{ color: rule.color }"><ArrowRight /></el-icon>
+          </div>
+          <div class="card-bottom-bar" :style="{ background: rule.color }"></div>
+        </article>
       </div>
-    </div>
+    </section>
 
-    <!-- 病例管理标签页 -->
-    <div v-if="activeTab === 'manage'" class="manage-section">
-      <!-- 筛选区域 -->
-      <div class="filters-section">
-        <div class="search-group">
-          <input
-            v-model="searchKeyword"
-            type="text"
-            placeholder="搜索病例标题、描述或标签..."
-            class="search-input"
-          >
+    <section v-if="activeTab === 'manage'" class="content-panel">
+      <div class="toolbar-row">
+        <div class="search-box">
+          <input v-model="searchKeyword" type="text" placeholder="搜索标题或描述..." />
         </div>
-
         <div class="filter-group">
-          <select v-model="filterStatus" class="filter-select">
+          <select v-model="filterStatus">
             <option value="all">全部状态</option>
-            <option value="draft">草稿</option>
             <option value="uploaded">已上传</option>
             <option value="reviewed">审核中</option>
             <option value="approved">已通过</option>
             <option value="rejected">已拒绝</option>
           </select>
-
-          <select v-model="filterType" class="filter-select">
+          <select v-model="filterType">
             <option value="all">全部类型</option>
             <option value="online">线上</option>
             <option value="offline">线下</option>
@@ -585,287 +349,277 @@ const switchTab = (tab: 'upload' | 'manage' | 'rules') => {
         </div>
       </div>
 
-      <!-- 病例列表 -->
-      <div class="cases-list">
-        <div
-          v-for="caseRecord in filteredCaseRecords"
-          :key="caseRecord.id"
-          class="case-card"
-        >
-          <div class="case-header">
-            <div class="case-title-section">
-              <h3 class="case-title">{{ caseRecord.title }}</h3>
-              <div class="case-meta">
-                <span class="case-type">附件 {{ caseRecord.files?.length || 0 }} 个</span>
-                <span
-                  class="case-status"
-                  :style="{
-                    color: getStatusInfo(caseRecord.status).color,
-                    backgroundColor: getStatusInfo(caseRecord.status).bgColor
-                  }"
-                >
-                  {{ getStatusInfo(caseRecord.status).icon }} {{ getStatusInfo(caseRecord.status).text }}
-                </span>
-              </div>
-            </div>
-
-            <div class="case-date">
-              <span class="date-label">更新时间：</span>
-              <span class="date-value">{{ formatDateTime(caseRecord.updatedAt) }}</span>
-            </div>
-          </div>
-
-          <div class="case-content">
-            <p class="case-description">{{ caseRecord.description || '暂无描述' }}</p>
-
-            <div class="case-details">
-              <div class="detail-section">
-                <h5>主要症状：</h5>
-                <div class="symptoms-tags">
-                  <span class="symptom-tag">暂无症状记录</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="case-files">
-              <h5>附件文件 ({{ caseRecord.files?.length || 0 }})：</h5>
-              <div class="files-list">
-                <div
-                  v-for="file in caseRecord.files || []"
-                  :key="file.id"
-                  class="file-item"
-                >
-                  <div class="file-thumbnail">
-                    <div class="file-icon">
-                      {{ file.mimeType?.startsWith('video/') ? '🎥' : file.mimeType?.startsWith('image/') ? '🖼️' : '📄' }}
-                    </div>
-                  </div>
-                  <div class="file-info">
-                    <div class="file-name">{{ file.originalName }}</div>
-                    <div class="file-meta">
-                      <span class="file-size">{{ formatFileSize(file.size) }}</span>
-                      <span class="file-privacy">🔒 已上传</span>
-                    </div>
-                  </div>
-                </div>
-                <div v-if="!caseRecord.files || caseRecord.files.length === 0" class="no-files">
-                  暂无附件
-                </div>
-              </div>
-            </div>
-
-            <div class="privacy-indicators">
-              <div class="privacy-item">
-                <span class="privacy-icon">🔒</span>
-                <span class="privacy-text">安全存储</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="case-actions">
-            <button class="action-btn edit-btn" @click="openEdit(caseRecord)">编辑</button>
-            <button class="action-btn danger-btn" @click="confirmDelete(caseRecord)">删除</button>
-            <button class="action-btn view-btn">查看详情</button>
-            <button class="action-btn download-btn">下载附件</button>
-          </div>
-        </div>
+      <div v-if="loadingCases" class="empty-state">
+        <div class="loading-spinner"></div>
+        <p>加载中...</p>
       </div>
-
-      <div v-if="filteredCaseRecords.length === 0" class="no-cases">
-        <p>暂无符合条件的病例记录</p>
+      <div v-else-if="!filteredCaseRecords.length" class="empty-state">
+        <el-icon :size="48" color="#c0c8d0"><FolderOpened /></el-icon>
+        <p>暂无符合条件的病例</p>
       </div>
-    </div>
+      <div v-else class="case-list">
+        <article v-for="record in filteredCaseRecords" :key="record.id" class="case-card">
+          <header class="case-header">
+            <div class="case-title-wrap">
+              <h3>{{ record.title }}</h3>
+              <small>更新于 {{ formatDate(record.updatedAt) }}</small>
+            </div>
+            <div class="case-tags">
+              <span class="type-tag" :class="record.caseType">{{ typeText(record.caseType) }}</span>
+              <span class="status-tag" :style="{ background: statusColor[record.status] + '18', color: statusColor[record.status] }">{{ statusText[record.status] }}</span>
+            </div>
+          </header>
 
-    <!-- 隐私规则标签页 -->
-    <div v-if="activeTab === 'rules'" class="rules-section">
-      <div class="rules-header">
-        <h2>隐私保护规则</h2>
-        <p>了解各类病例上传的隐私保护要求和指导原则</p>
-      </div>
+          <p class="case-desc">{{ record.description || '暂无描述' }}</p>
 
-      <div class="rules-content">
-        <div
-          v-for="rule in uploadRules"
-          :key="rule.id"
-          class="rule-detail-card"
-        >
-          <div class="rule-detail-header">
-            <h3>{{ rule.name }}</h3>
-            <span
-              class="privacy-level"
-              :style="{
-                color: getPrivacyLevelInfo(rule.requiredPrivacyLevel).color,
-                backgroundColor: getPrivacyLevelInfo(rule.requiredPrivacyLevel).bgColor
-              }"
-            >
-              {{ getPrivacyLevelInfo(rule.requiredPrivacyLevel).text }}
-            </span>
+          <div class="case-files">
+            <h4>
+              <el-icon :size="14"><Document /></el-icon>
+              附件（{{ record.files.length }}）
+            </h4>
+            <div v-if="record.files.length" class="file-list">
+              <div v-for="file in record.files" :key="file.id" class="file-item">
+                <span class="file-name">{{ file.originalName }}</span>
+                <span class="file-size">{{ formatSize(file.size) }}</span>
+                <button class="file-download" @click="downloadFile(file)">
+                  <el-icon :size="14"><Download /></el-icon>
+                </button>
+              </div>
+            </div>
+            <div v-else class="no-files">暂无附件</div>
           </div>
 
-          <p class="rule-detail-description">{{ rule.description }}</p>
+          <footer class="case-actions">
+            <button class="action-btn edit" @click="openEdit(record)">
+              <el-icon :size="14"><Edit /></el-icon>
+              编辑
+            </button>
+            <button class="action-btn delete" @click="removeCase(record)">
+              <el-icon :size="14"><Delete /></el-icon>
+              删除
+            </button>
+            <button class="action-btn view" @click="openDetail(record)">
+              <el-icon :size="14"><View /></el-icon>
+              详情
+            </button>
+            <button class="action-btn download" @click="downloadAll(record)">
+              <el-icon :size="14"><Download /></el-icon>
+              下载全部
+            </button>
+          </footer>
+        </article>
+      </div>
+    </section>
 
-          <div class="rule-specifications">
-            <div class="spec-section">
-              <h4>📋 技术规格</h4>
-              <ul>
-                <li>最大文件大小：{{ rule.maxFileSize }}MB</li>
-                <li>支持文件类型：{{ rule.allowedFileTypes.join(', ') }}</li>
-                <li>允许身体部位：{{ rule.allowedBodyParts.length }}种</li>
-              </ul>
+    <section v-if="activeTab === 'rules'" class="content-panel">
+      <div class="section-title">
+        <h2>隐私规则说明</h2>
+        <span class="section-line"></span>
+      </div>
+      <div class="rules-grid">
+        <article v-for="rule in rules" :key="`r-${rule.id}`" class="rule-card">
+          <div class="rule-icon" :style="{ background: rule.bg, color: rule.color }">
+            <el-icon :size="28"><component :is="rule.icon" /></el-icon>
+          </div>
+          <h3>{{ rule.name }}</h3>
+          <p>{{ rule.description }}</p>
+          <div class="rule-types">
+            <span class="type-label">允许类型：</span>
+            <span class="type-value">{{ rule.allowedFileTypes.map(t => t.split('/')[1].toUpperCase()).join('、') }}</span>
+          </div>
+          <div class="rule-limit">
+            <span class="limit-label">大小上限：</span>
+            <span class="limit-value">{{ rule.maxFileSizeMB }}MB</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <div v-if="showUploadModal" class="modal-overlay" @click="closeUpload">
+      <div class="modal-panel" @click.stop>
+        <header class="modal-header">
+          <div class="modal-title-wrap">
+            <div class="modal-icon" :style="{ background: selectedRule?.bg, color: selectedRule?.color }">
+              <el-icon :size="20"><component :is="selectedRule?.icon" /></el-icon>
             </div>
-
-            <div class="spec-section">
-              <h4>📖 操作指导</h4>
-              <ol>
-                <li v-for="guideline in rule.guidelines" :key="guideline">
-                  {{ guideline }}
-                </li>
-              </ol>
+            <h2>{{ selectedRule?.name }}</h2>
+          </div>
+          <button class="modal-close" @click="closeUpload">
+            <el-icon :size="20"><Close /></el-icon>
+          </button>
+        </header>
+        <form class="modal-form" @submit.prevent="submitUpload">
+          <div class="form-group">
+            <label>病例标题 <span class="required">*</span></label>
+            <input v-model="uploadForm.title" required placeholder="请输入病例标题" />
+          </div>
+          <div class="form-group">
+            <label>病例描述</label>
+            <textarea v-model="uploadForm.description" rows="3" placeholder="请输入病例描述（可选）" />
+          </div>
+          <div class="form-group">
+            <label>病例类型</label>
+            <div class="radio-group">
+              <label class="radio-item" :class="{ active: uploadForm.caseType === 'online' }">
+                <input v-model="uploadForm.caseType" type="radio" value="online" />
+                <span class="radio-label">线上诊疗</span>
+              </label>
+              <label class="radio-item" :class="{ active: uploadForm.caseType === 'offline' }">
+                <input v-model="uploadForm.caseType" type="radio" value="offline" />
+                <span class="radio-label">线下门诊</span>
+              </label>
             </div>
-
-
-
-            <div class="spec-section">
-              <h4>💡 示例说明</h4>
-              <div class="examples-list">
-                <span
-                  v-for="example in rule.examples"
-                  :key="example"
-                  class="example-tag"
-                >
-                  {{ example }}
-                </span>
+          </div>
+          <div class="form-group">
+            <label>上传附件 <span class="required">*</span></label>
+            <div class="file-upload-area">
+              <input type="file" multiple :accept="selectedRule?.allowedFileTypes.join(',')" @change="onUploadFiles" />
+              <div class="upload-hint">
+                <el-icon :size="24" color="#a0aec0"><Upload /></el-icon>
+                <p>点击或拖拽文件到此处上传</p>
+                <small>最大 {{ selectedRule?.maxFileSizeMB }}MB</small>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 上传弹窗 -->
-    <div v-if="showUploadModal" class="modal-overlay" @click="closeModal">
-      <div class="upload-modal" @click.stop>
-        <div class="modal-header">
-          <h2>{{ selectedRule?.name }} - 安全上传</h2>
-          <button class="close-btn" @click="closeModal">×</button>
-        </div>
-
-        <div class="modal-content">
-          <form @submit.prevent="submitCaseUpload" class="upload-form">
-            <div class="form-section">
-              <h3>基本信息</h3>
-
-              <div class="form-group">
-                <label>病例标题 *</label>
-                <input
-                  v-model="uploadForm.title"
-                  type="text"
-                  placeholder="请输入病例标题"
-                  required
-                >
-              </div>
-
-              <div class="form-group">
-                <label>病例描述（可选）</label>
-                <textarea
-                  v-model="uploadForm.description"
-                  rows="4"
-                  placeholder="请详细描述病例情况，注意保护患者隐私"
-                ></textarea>
-              </div>
-
-              <div class="form-group">
-                <label>类型</label>
-                <div class="radio-group">
-                  <label class="radio-label">
-                    <input type="radio" v-model="uploadForm.caseType" value="online">
-                    <span>线上诊疗</span>
-                  </label>
-                  <label class="radio-label">
-                    <input type="radio" v-model="uploadForm.caseType" value="offline">
-                    <span>线下门诊</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-
-
-            <div class="form-section">
-              <h3>文件上传</h3>
-              <div class="file-upload-area">
-                <input
-                  type="file"
-                  multiple
-                  :accept="selectedRule?.allowedFileTypes.join(',')"
-                  @change="handleFileUpload"
-                  class="file-input"
-                  id="file-upload"
-                >
-                <label for="file-upload" class="file-upload-label">
-                  <div class="upload-icon">📤</div>
-                  <div class="upload-text">
-                    <p>点击上传文件或拖拽文件到此处</p>
-                    <p class="upload-hint">
-                      支持：{{ selectedRule?.allowedFileTypes.join(', ') }}，
-                      最大 {{ selectedRule?.maxFileSize }}MB
-                    </p>
-                  </div>
-                </label>
-
-                <div v-if="uploadForm.files.length > 0" class="uploaded-files">
-                  <h4>已选择文件：</h4>
-                  <div
-                    v-for="(file, index) in uploadForm.files"
-                    :key="index"
-                    class="uploaded-file-item"
-                  >
-                    <span class="file-name">{{ file.name }}</span>
-                    <span class="file-size">{{ formatFileSize(file.size) }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-
-
-            <div class="form-actions">
-              <button type="button" class="cancel-btn" @click="closeModal">
-                取消
-              </button>
-              <button type="submit" class="submit-btn">
-                安全上传
+          <div v-if="uploadForm.files.length" class="file-preview-list">
+            <div v-for="(f, i) in uploadForm.files" :key="`${f.name}-${i}`" class="preview-item">
+              <span class="preview-name">{{ f.name }}</span>
+              <span class="preview-size">{{ formatSize(f.size) }}</span>
+              <button type="button" class="preview-remove" @click="rmUploadFile(i)">
+                <el-icon :size="14"><Close /></el-icon>
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+          <footer class="modal-footer">
+            <button type="button" class="btn-cancel" @click="closeUpload">取消</button>
+            <button type="submit" class="btn-submit">
+              <el-icon :size="16"><Upload /></el-icon>
+              提交上传
+            </button>
+          </footer>
+        </form>
       </div>
     </div>
 
-    <!-- 编辑弹窗 -->
     <div v-if="showEditModal" class="modal-overlay" @click="closeEdit">
-      <div class="upload-modal" @click.stop>
-        <div class="modal-header">
+      <div class="modal-panel" @click.stop>
+        <header class="modal-header">
           <h2>编辑病例</h2>
-          <button class="close-btn" @click="closeEdit">×</button>
-        </div>
-        <div class="modal-content">
-          <form @submit.prevent="submitEdit" class="upload-form">
-            <div class="form-section">
-              <div class="form-group">
-                <label>病例标题 *</label>
-                <input v-model="editForm.title" type="text" required />
-              </div>
-              <div class="form-group">
-                <label>病例描述（可选）</label>
-                <textarea v-model="editForm.description" rows="4"></textarea>
+          <button class="modal-close" @click="closeEdit">
+            <el-icon :size="20"><Close /></el-icon>
+          </button>
+        </header>
+        <form class="modal-form" @submit.prevent="submitEdit">
+          <div class="form-group">
+            <label>病例标题 <span class="required">*</span></label>
+            <input v-model="editForm.title" required placeholder="请输入病例标题" />
+          </div>
+          <div class="form-group">
+            <label>病例描述</label>
+            <textarea v-model="editForm.description" rows="3" placeholder="请输入病例描述（可选）" />
+          </div>
+          <div class="form-group">
+            <label>病例类型</label>
+            <div class="radio-group">
+              <label class="radio-item" :class="{ active: editForm.caseType === 'online' }">
+                <input v-model="editForm.caseType" type="radio" value="online" />
+                <span class="radio-label">线上诊疗</span>
+              </label>
+              <label class="radio-item" :class="{ active: editForm.caseType === 'offline' }">
+                <input v-model="editForm.caseType" type="radio" value="offline" />
+                <span class="radio-label">线下门诊</span>
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>已有附件</label>
+            <div v-if="editingCase?.files.length" class="file-preview-list">
+              <div v-for="f in editingCase.files" :key="f.id" class="preview-item">
+                <span class="preview-name">{{ f.originalName }}</span>
+                <span class="preview-size">{{ formatSize(f.size) }}</span>
+                <button type="button" class="preview-remove danger" @click="removeExistingFile(f)">
+                  <el-icon :size="14"><Delete /></el-icon>
+                </button>
               </div>
             </div>
-            <div class="form-actions">
-              <button type="button" class="cancel-btn" @click="closeEdit">取消</button>
-              <button type="submit" class="submit-btn">保存</button>
+            <div v-else class="no-files-hint">暂无附件</div>
+          </div>
+          <div class="form-group">
+            <label>新增附件</label>
+            <div class="file-upload-area small">
+              <input type="file" multiple :accept="DEFAULT_ACCEPT.join(',')" @change="onEditFiles" />
+              <div class="upload-hint">
+                <el-icon :size="20" color="#a0aec0"><Plus /></el-icon>
+                <p>添加新附件</p>
+              </div>
             </div>
-          </form>
+          </div>
+          <div v-if="editForm.newFiles.length" class="file-preview-list">
+            <div v-for="(f, i) in editForm.newFiles" :key="`${f.name}-${i}`" class="preview-item">
+              <span class="preview-name">{{ f.name }}</span>
+              <span class="preview-size">{{ formatSize(f.size) }}</span>
+              <button type="button" class="preview-remove" @click="rmEditFile(i)">
+                <el-icon :size="14"><Close /></el-icon>
+              </button>
+            </div>
+          </div>
+          <footer class="modal-footer">
+            <button type="button" class="btn-cancel" @click="closeEdit">取消</button>
+            <button type="submit" class="btn-submit">
+              <el-icon :size="16"><Edit /></el-icon>
+              保存修改
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="showDetailModal" class="modal-overlay" @click="closeDetail">
+      <div class="modal-panel" @click.stop>
+        <header class="modal-header">
+          <h2>病例详情</h2>
+          <button class="modal-close" @click="closeDetail">
+            <el-icon :size="20"><Close /></el-icon>
+          </button>
+        </header>
+        <div v-if="detailCase" class="detail-content">
+          <div class="detail-row">
+            <span class="detail-label">标题</span>
+            <span class="detail-value">{{ detailCase.title }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">类型</span>
+            <span class="type-tag" :class="detailCase.caseType">{{ typeText(detailCase.caseType) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">状态</span>
+            <span class="status-tag" :style="{ background: statusColor[detailCase.status] + '18', color: statusColor[detailCase.status] }">{{ statusText[detailCase.status] }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">创建时间</span>
+            <span class="detail-value">{{ formatDate(detailCase.createdAt) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">更新时间</span>
+            <span class="detail-value">{{ formatDate(detailCase.updatedAt) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">描述</span>
+            <span class="detail-value">{{ detailCase.description || '暂无描述' }}</span>
+          </div>
+          <div class="detail-section">
+            <h4>附件（{{ detailCase.files.length }}）</h4>
+            <div v-if="detailCase.files.length" class="file-preview-list">
+              <div v-for="f in detailCase.files" :key="`d-${f.id}`" class="preview-item">
+                <span class="preview-name">{{ f.originalName }}</span>
+                <span class="preview-size">{{ formatSize(f.size) }}</span>
+                <button type="button" class="preview-download" @click="downloadFile(f)">
+                  <el-icon :size="14"><Download /></el-icon>
+                </button>
+              </div>
+            </div>
+            <div v-else class="no-files-hint">暂无附件</div>
+          </div>
         </div>
       </div>
     </div>
@@ -873,295 +627,325 @@ const switchTab = (tab: 'upload' | 'manage' | 'rules') => {
 </template>
 
 <style scoped>
-.case-privacy-container {
-  max-width: 1400px;
+.privacy-layout {
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 2rem;
-}
-
-/* 页面头部 */
-.page-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.page-header h1 {
-  font-size: 2.5rem;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-}
-
-.header-desc {
-  color: #666;
-  font-size: 1.1rem;
-}
-
-/* 医生认证卡片 */
-.doctor-verification-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  color: white;
-}
-
-.verification-content {
+  padding: 0 1rem 2rem;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
-.doctor-info {
+.hero-header {
+  position: relative;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  border-radius: 18px;
+  padding: 2rem 2.25rem;
+  color: #fff;
+  overflow: hidden;
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  background: rgba(91, 141, 239, 0.25);
+  color: #93b4f8;
+  border-radius: 999px;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.5px;
+}
+
+.hero-header h1 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+}
+
+.hero-header p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #94a3b8;
+}
+
+.deco-circle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.08;
+}
+
+.c1 { width: 180px; height: 180px; background: #5b8def; top: -50px; right: -20px; }
+.c2 { width: 100px; height: 100px; background: #a78bfa; bottom: -30px; right: 80px; }
+.c3 { width: 60px; height: 60px; background: #4ec3a0; top: 15px; right: 150px; }
+
+.doctor-card {
   display: flex;
   align-items: center;
   gap: 1rem;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
 }
 
 .doctor-avatar {
-  width: 60px;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.2);
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  backdrop-filter: blur(10px);
+  font-size: 1.35rem;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
-.doctor-details h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.3rem;
+.doctor-info {
+  flex: 1;
 }
 
-.doctor-details p {
-  margin: 0 0 0.25rem 0;
-  opacity: 0.9;
+.doctor-info h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.doctor-info p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #64748b;
 }
 
 .verified-badge {
-  background: rgba(76, 175, 80, 0.3);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-weight: 500;
-  backdrop-filter: blur(10px);
-}
-
-/* 统计信息 */
-.statistics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  background: #edfaf5;
+  color: #059669;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 
-.stat-icon {
-  font-size: 2rem;
+.stat-strip {
+  display: flex;
+  gap: 0.85rem;
 }
 
-.stat-number {
-  font-size: 1.8rem;
-  font-weight: bold;
-  color: #2c3e50;
+.stat-chip {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 12px;
 }
 
-.stat-label {
-  color: #666;
+.chip-num {
+  font-size: 1.4rem;
+  font-weight: 750;
+  color: #1e293b;
+  line-height: 1;
+}
+
+.chip-num small {
   font-size: 0.9rem;
+  font-weight: 500;
+  color: #64748b;
 }
 
-/* 标签页导航 */
-.tab-navigation {
+.chip-label {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.tab-nav {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 2rem;
-  background: white;
-  padding: 0.5rem;
+  background: #fff;
+  border: 1px solid #eef0f4;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 0.4rem;
 }
 
-.tab-btn {
+.tab-nav button {
   flex: 1;
-  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1rem;
   border: none;
-  border-radius: 8px;
   background: transparent;
-  color: #666;
+  color: #64748b;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 1rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-.tab-btn:hover {
-  background: #f0f8ff;
-  color: #2196f3;
+.tab-nav button:hover {
+  background: #f8fafc;
+  color: #1e293b;
 }
 
-.tab-btn.active {
-  background: #42b883;
-  color: white;
+.tab-nav button.active {
+  background: #5b8def;
+  color: #fff;
 }
 
-/* 上传规则网格 */
-.upload-header {
-  text-align: center;
-  margin-bottom: 2rem;
+.content-panel {
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 14px;
+  padding: 1.25rem;
 }
 
-.upload-header h2 {
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-}
-
-.upload-rules-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.rule-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  transition: all 0.3s ease;
-  cursor: pointer;
-  border: 2px solid transparent;
-}
-
-.rule-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-  border-color: #42b883;
-}
-
-.rule-header {
+.section-title {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
-.rule-header h3 {
-  color: #2c3e50;
+.section-title h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
   margin: 0;
-  font-size: 1.2rem;
+  white-space: nowrap;
 }
 
-.privacy-level {
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.rule-description {
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 1rem;
-}
-
-.rule-details {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.rule-info {
-  text-align: center;
-}
-
-.info-label {
-  display: block;
-  color: #666;
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
-}
-
-.info-value {
-  color: #2c3e50;
-  font-weight: 500;
-}
-
-.rule-guidelines h5 {
-  color: #2c3e50;
-  margin: 0 0 0.5rem 0;
-  font-size: 0.9rem;
-}
-
-.rule-guidelines ul {
-  margin: 0 0 1rem 0;
-  padding-left: 1.2rem;
-}
-
-.rule-guidelines li {
-  color: #666;
-  font-size: 0.85rem;
-  line-height: 1.4;
-  margin-bottom: 0.25rem;
-}
-
-.upload-btn {
-  width: 100%;
-  background: #42b883;
-  color: white;
-  border: none;
-  padding: 0.75rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.3s ease;
-}
-
-.upload-btn:hover {
-  background: #369870;
-}
-
-/* 筛选区域 */
-.filters-section {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  margin-bottom: 2rem;
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.search-group {
+.section-line {
   flex: 1;
-  min-width: 300px;
+  height: 1px;
+  background: #e8eaef;
 }
 
-.search-input {
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.upload-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 14px;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.upload-card:hover {
+  border-color: transparent;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  transform: translateY(-3px);
+}
+
+.upload-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+}
+
+.upload-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+}
+
+.upload-card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.upload-card p {
+  margin: 0 0 0.6rem;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.upload-meta {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-bottom: 0.75rem;
+}
+
+.upload-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.enter-text {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.card-bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 0 0 14px 14px;
+}
+
+.toolbar-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.search-box {
+  flex: 1;
+}
+
+.search-box input {
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  transition: border-color 0.2s ease;
 }
 
-.search-input:focus {
+.search-box input:focus {
   outline: none;
-  border-color: #42b883;
+  border-color: #5b8def;
 }
 
 .filter-group {
@@ -1169,355 +953,295 @@ const switchTab = (tab: 'upload' | 'manage' | 'rules') => {
   gap: 0.5rem;
 }
 
-.filter-select {
-  padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: white;
+.filter-group select {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  background: #fff;
   cursor: pointer;
 }
 
-/* 病例列表 */
-.cases-list {
+.empty-state {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  color: #94a3b8;
+  gap: 0.75rem;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #5b8def;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.case-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
 }
 
 .case-card {
-  background: white;
+  border: 1px solid #eef0f4;
   border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: all 0.3s ease;
+  padding: 1rem 1.15rem;
+  transition: box-shadow 0.2s ease;
 }
 
 .case-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
 }
 
 .case-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.case-title {
-  color: #2c3e50;
-  margin: 0 0 0.5rem 0;
-  font-size: 1.3rem;
-}
-
-.case-meta {
-  display: flex;
   gap: 1rem;
-  align-items: center;
+  margin-bottom: 0.6rem;
 }
 
-.case-type {
-  background: #e3f2fd;
-  color: #2196f3;
-  padding: 0.2rem 0.5rem;
-  border-radius: 8px;
-  font-size: 0.8rem;
+.case-title-wrap h3 {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
 }
 
-.case-status {
-  padding: 0.2rem 0.5rem;
-  border-radius: 8px;
-  font-size: 0.8rem;
+.case-title-wrap small {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.case-tags {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.type-tag {
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
   font-weight: 500;
 }
 
-.case-date {
-  text-align: right;
+.type-tag.online {
+  background: #eef3ff;
+  color: #5b8def;
 }
 
-.date-label {
-  color: #666;
-  font-size: 0.8rem;
+.type-tag.offline {
+  background: #fff3ee;
+  color: #e67e5a;
 }
 
-.date-value {
-  color: #2c3e50;
+.status-tag {
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
   font-weight: 500;
 }
 
-.case-description {
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 1rem;
-}
-
-.case-details {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.detail-section h5 {
-  color: #2c3e50;
-  margin: 0 0 0.5rem 0;
-  font-size: 0.9rem;
-}
-
-.symptoms-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-}
-
-.symptom-tag {
-  background: #fff3e0;
-  color: #ff9800;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-}
-
-.more-symptoms {
-  background: #f0f0f0;
-  color: #666;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
+.case-desc {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.5;
 }
 
 .case-files {
-  margin-bottom: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
-.case-files h5 {
-  color: #2c3e50;
-  margin: 0 0 0.75rem 0;
-  font-size: 0.9rem;
-}
-
-.files-list {
+.case-files h4 {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .file-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-  min-width: 200px;
-}
-
-.file-thumbnail {
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
-  overflow: hidden;
-  background: #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.file-thumbnail img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.file-icon {
-  font-size: 1.5rem;
-}
-
-.file-name {
-  color: #2c3e50;
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-  font-size: 0.9rem;
-}
-
-.file-meta {
-  display: flex;
   gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  background: #fff;
+  border-radius: 6px;
   font-size: 0.8rem;
 }
 
+.file-name {
+  flex: 1;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .file-size {
-  color: #666;
+  color: #94a3b8;
+  font-size: 0.75rem;
 }
 
-.file-privacy {
-  color: #42b883;
-}
-
-.privacy-indicators {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.privacy-item {
+.file-download {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: #f0f8ff;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #eef3ff;
+  color: #5b8def;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.privacy-icon {
-  font-size: 1rem;
+.file-download:hover {
+  background: #5b8def;
+  color: #fff;
 }
 
-.privacy-text {
-  color: #2196f3;
-  font-size: 0.85rem;
-  font-weight: 500;
+.no-files {
+  font-size: 0.8rem;
+  color: #94a3b8;
 }
 
 .case-actions {
   display: flex;
   gap: 0.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid #f0f0f0;
 }
 
 .action-btn {
-  flex: 1;
-  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.45rem 0.75rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 500;
   cursor: pointer;
-  font-size: 0.9rem;
   transition: all 0.2s ease;
 }
 
-.view-btn {
-  background: #e3f2fd;
-  color: #2196f3;
+.action-btn.edit {
+  background: #eef3ff;
+  color: #5b8def;
 }
 
-.view-btn:hover {
-  background: #bbdefb;
+.action-btn.edit:hover {
+  background: #5b8def;
+  color: #fff;
 }
 
-.edit-btn {
-  background: #fff3e0;
-  color: #ff9800;
+.action-btn.delete {
+  background: #fef2f2;
+  color: #ef4444;
 }
 
-.edit-btn:hover {
-  background: #ffe0b2;
+.action-btn.delete:hover {
+  background: #ef4444;
+  color: #fff;
 }
 
-.download-btn {
-  background: #e8f5e8;
-  color: #42b883;
+.action-btn.view {
+  background: #f0fdf4;
+  color: #059669;
 }
 
-.download-btn:hover {
-  background: #c8e6c9;
+.action-btn.view:hover {
+  background: #059669;
+  color: #fff;
 }
 
-.no-cases {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #666;
+.action-btn.download {
+  background: #f8fafc;
+  color: #64748b;
 }
 
-/* 规则详情 */
-.rules-header {
-  text-align: center;
-  margin-bottom: 2rem;
+.action-btn.download:hover {
+  background: #64748b;
+  color: #fff;
 }
 
-.rules-header h2 {
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-}
-
-.rule-detail-card {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  margin-bottom: 2rem;
-}
-
-.rule-detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #42b883;
-}
-
-.rule-detail-header h3 {
-  color: #2c3e50;
-  margin: 0;
-  font-size: 1.4rem;
-}
-
-.rule-detail-description {
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 2rem;
-  font-size: 1.1rem;
-}
-
-.rule-specifications {
+.rules-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
 }
 
-.spec-section h4 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-  font-size: 1.1rem;
+.rule-card {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
 }
 
-.spec-section ul,
-.spec-section ol {
-  margin: 0;
-  padding-left: 1.5rem;
+.rule-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.85rem;
 }
 
-.spec-section li {
-  color: #666;
-  margin-bottom: 0.5rem;
+.rule-card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.rule-card p {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  color: #64748b;
   line-height: 1.5;
 }
 
-.examples-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.rule-types, .rule-limit {
+  font-size: 0.78rem;
+  margin-bottom: 0.25rem;
 }
 
-.example-tag {
-  background: #e8f5e8;
-  color: #42b883;
-  padding: 0.3rem 0.75rem;
-  border-radius: 16px;
-  font-size: 0.9rem;
+.type-label, .limit-label {
+  color: #94a3b8;
 }
 
-/* 弹窗样式 */
+.type-value, .limit-value {
+  color: #475569;
+  font-weight: 500;
+}
+
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1525,66 +1249,67 @@ const switchTab = (tab: 'upload' | 'manage' | 'rules') => {
   padding: 1rem;
 }
 
-.upload-modal {
-  background: white;
-  border-radius: 12px;
-  max-width: 700px;
+.modal-panel {
+  background: #fff;
+  border-radius: 16px;
   width: 100%;
+  max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15);
 }
 
 .modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
+  justify-content: space-between;
+  padding: 1.15rem 1.35rem;
+  border-bottom: 1px solid #f0f0f5;
 }
 
-.modal-header h2 {
-  margin: 0;
-  color: #2c3e50;
+.modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  cursor: pointer;
-  color: #999;
-  padding: 0;
-  width: 30px;
-  height: 30px;
+.modal-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.close-btn:hover {
-  color: #666;
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1e293b;
 }
 
-.modal-content {
-  padding: 1.5rem;
-}
-
-.upload-form {
+.modal-close {
   display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.form-section {
-  border: 1px solid #e0e0e0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f8fafc;
+  color: #64748b;
   border-radius: 8px;
-  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.form-section h3 {
-  color: #2c3e50;
-  margin: 0 0 1rem 0;
-  font-size: 1.2rem;
+.modal-close:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+.modal-form {
+  padding: 1.25rem 1.35rem;
 }
 
 .form-group {
@@ -1593,265 +1318,314 @@ const switchTab = (tab: 'upload' | 'manage' | 'rules') => {
 
 .form-group label {
   display: block;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
   font-weight: 500;
+  color: #334155;
 }
 
-.form-group input,
-.form-group textarea {
+.required {
+  color: #ef4444;
+}
+
+.form-group input[type="text"],
+.form-group textarea,
+.form-group select {
   width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  transition: border-color 0.2s ease;
 }
 
 .form-group input:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-group select:focus {
   outline: none;
-  border-color: #42b883;
+  border-color: #5b8def;
 }
 
 .radio-group {
   display: flex;
-  gap: 1rem;
-}
-
-.radio-label {
-  display: flex;
-  align-items: center;
   gap: 0.5rem;
-  cursor: pointer;
 }
 
-
-
-.checkbox-label {
+.radio-item {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  border: 2px solid #e0e0e0;
+  justify-content: center;
+  padding: 0.6rem;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
-.checkbox-label:hover {
-  border-color: #42b883;
-  background: #f0f8ff;
-}
-
-.checkbox-content {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.option-icon {
-  font-size: 1.5rem;
-}
-
-.option-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.option-label {
-  color: #2c3e50;
-  font-weight: 500;
-}
-
-.option-description {
-  color: #666;
-  font-size: 0.85rem;
-}
-
-.file-upload-area {
-  border: 2px dashed #e0e0e0;
-  border-radius: 8px;
-  padding: 2rem;
-  text-align: center;
-  transition: all 0.3s ease;
-}
-
-.file-upload-area:hover {
-  border-color: #42b883;
-  background: #f0f8ff;
-}
-
-.file-input {
+.radio-item input {
   display: none;
 }
 
-.file-upload-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
+.radio-item:hover {
+  border-color: #5b8def;
+}
+
+.radio-item.active {
+  border-color: #5b8def;
+  background: #eef3ff;
+}
+
+.radio-label {
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.file-upload-area {
+  position: relative;
+  border: 2px dashed #e2e8f0;
+  border-radius: 10px;
+  padding: 1.5rem;
+  text-align: center;
+  transition: border-color 0.2s ease;
+}
+
+.file-upload-area:hover {
+  border-color: #5b8def;
+}
+
+.file-upload-area input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
   cursor: pointer;
-}
-
-.upload-icon {
-  font-size: 3rem;
-  color: #42b883;
-}
-
-.upload-text p {
-  margin: 0;
-  color: #2c3e50;
 }
 
 .upload-hint {
-  font-size: 0.9rem;
-  color: #666;
-}
-
-.uploaded-files {
-  margin-top: 1rem;
-  text-align: left;
-}
-
-.uploaded-files h4 {
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
-}
-
-.uploaded-file-item {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  padding: 0.5rem;
-  background: #f8f9fa;
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
+  gap: 0.35rem;
 }
 
-.file-name {
-  color: #2c3e50;
-  font-weight: 500;
+.upload-hint p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
 }
 
-.file-size {
-  color: #666;
-  font-size: 0.9rem;
+.upload-hint small {
+  font-size: 0.75rem;
+  color: #94a3b8;
 }
 
+.file-upload-area.small {
+  padding: 0.85rem;
+}
 
-
-.form-actions {
+.file-preview-list {
   display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  padding-top: 1rem;
-  border-top: 1px solid #e0e0e0;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
 }
 
-.cancel-btn,
-.submit-btn {
-  padding: 0.75rem 2rem;
-  border: none;
+.preview-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background: #f8fafc;
   border-radius: 8px;
+}
+
+.preview-name {
+  flex: 1;
+  font-size: 0.82rem;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-size {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.preview-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #fee2e2;
+  color: #ef4444;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.3s ease;
+  transition: all 0.2s ease;
 }
 
-.cancel-btn {
-  background: #f0f0f0;
-  color: #666;
+.preview-remove:hover {
+  background: #ef4444;
+  color: #fff;
 }
 
-.cancel-btn:hover {
-  background: #e0e0e0;
+.preview-remove.danger {
+  background: #fee2e2;
+  color: #ef4444;
 }
 
-.submit-btn {
-  background: #42b883;
-  color: white;
+.preview-download {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #eef3ff;
+  color: #5b8def;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.submit-btn:hover {
-  background: #369870;
+.preview-download:hover {
+  background: #5b8def;
+  color: #fff;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .case-privacy-container {
-    padding: 1rem;
-  }
+.no-files-hint {
+  padding: 0.6rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  text-align: center;
+}
 
-  .page-header h1 {
-    font-size: 2rem;
-  }
+.modal-footer {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f5;
+}
 
-  .verification-content {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
+.btn-cancel {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
 
-  .doctor-info {
-    flex-direction: column;
-    text-align: center;
-  }
+.btn-cancel:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
 
-  .statistics-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
+.btn-submit {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1rem;
+  border: none;
+  background: #5b8def;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
 
-  .tab-navigation {
-    flex-direction: column;
-  }
+.btn-submit:hover {
+  background: #4a7de0;
+}
 
-  .filters-section {
-    flex-direction: column;
-    gap: 1rem;
-  }
+.detail-content {
+  padding: 1.25rem 1.35rem;
+}
 
-  .search-group {
-    min-width: auto;
-  }
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f0f0f5;
+}
 
-  .upload-rules-grid {
+.detail-row:last-of-type {
+  border-bottom: none;
+}
+
+.detail-label {
+  width: 80px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.detail-section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f0f0f5;
+}
+
+.detail-section h4 {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+@media (max-width: 900px) {
+  .upload-grid, .rules-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .upload-grid, .rules-grid {
     grid-template-columns: 1fr;
   }
 
-  .case-header {
-    flex-direction: column;
-    gap: 1rem;
+  .stat-strip {
+    flex-wrap: wrap;
   }
 
-  .case-details {
-    grid-template-columns: 1fr;
+  .stat-chip {
+    flex: 1 1 45%;
   }
 
-  .files-list {
+  .toolbar-row {
     flex-direction: column;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-group select {
+    flex: 1;
   }
 
   .case-actions {
-    flex-direction: column;
+    flex-wrap: wrap;
   }
-
-  .rule-specifications {
-    grid-template-columns: 1fr;
-  }
-
-
-
-
-
-  .form-actions {
-    flex-direction: column;
-  }
-}
-
-.no-files {
-  color: #999;
-  font-style: italic;
-  text-align: center;
-  padding: 1rem;
 }
 </style>

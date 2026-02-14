@@ -340,77 +340,85 @@ const getSectionScores = computed(() => {
   <div class="sensory-test-container">
     <!-- 测试开始页 -->
     <div v-if="!testStarted" class="test-intro">
-      <div class="intro-content">
-        <h1>儿童感统能力测试</h1>
-        <p class="intro-desc">
-          本测试通过17个问题，从身体协调、触觉反应、注意力等5个维度评估孩子的感统发展情况。
-          测试大约需要5-10分钟完成。
+      <!-- Hero Header -->
+      <div class="intro-hero">
+        <div class="hero-circle hero-circle--1"></div>
+        <div class="hero-circle hero-circle--2"></div>
+        <div class="hero-circle hero-circle--3"></div>
+        <span class="hero-badge">感统测评</span>
+        <h1 class="hero-title">儿童感统能力测试</h1>
+        <p class="hero-subtitle">
+          通过17个问题，从身体协调、触觉反应、注意力等5个维度评估孩子的感统发展情况，测试大约需要5-10分钟完成。
         </p>
-        
-        <div class="test-sections">
-          <div class="section-item">
-            <div class="section-icon">🏃</div>
-            <div class="section-info">
-              <h3>身体协调与平衡</h3>
-              <p>评估孩子的运动协调能力和平衡感</p>
-            </div>
-          </div>
-          
-          <div class="section-item">
-            <div class="section-icon">🤲</div>
-            <div class="section-info">
-              <h3>身体意识与运动计划</h3>
-              <p>评估孩子的空间感和动作控制能力</p>
-            </div>
-          </div>
-          
-          <div class="section-item">
-            <div class="section-icon">✋</div>
-            <div class="section-info">
-              <h3>触觉反应</h3>
-              <p>评估孩子对触觉刺激的敏感度和反应</p>
-            </div>
-          </div>
-          
-          <div class="section-item">
-            <div class="section-icon">🧠</div>
-            <div class="section-info">
-              <h3>注意力与情绪行为</h3>
-              <p>评估孩子的专注力和情绪调节能力</p>
-            </div>
-          </div>
-          
-          <div class="section-item">
-            <div class="section-icon">👁️</div>
-            <div class="section-info">
-              <h3>视听觉反应</h3>
-              <p>评估孩子对视觉和听觉刺激的反应</p>
-            </div>
+      </div>
+
+      <!-- Section Cards -->
+      <div class="test-sections">
+        <div class="section-card">
+          <div class="section-icon-wrap"><span class="section-icon">🏃</span></div>
+          <div class="section-info">
+            <h3>身体协调与平衡</h3>
+            <p>评估孩子的运动协调能力和平衡感</p>
           </div>
         </div>
-        
-        <button class="start-btn" @click="startTest">开始测试</button>
+
+        <div class="section-card">
+          <div class="section-icon-wrap"><span class="section-icon">🤲</span></div>
+          <div class="section-info">
+            <h3>身体意识与运动计划</h3>
+            <p>评估孩子的空间感和动作控制能力</p>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-icon-wrap"><span class="section-icon">✋</span></div>
+          <div class="section-info">
+            <h3>触觉反应</h3>
+            <p>评估孩子对触觉刺激的敏感度和反应</p>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-icon-wrap"><span class="section-icon">🧠</span></div>
+          <div class="section-info">
+            <h3>注意力与情绪行为</h3>
+            <p>评估孩子的专注力和情绪调节能力</p>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-icon-wrap"><span class="section-icon">👁️</span></div>
+          <div class="section-info">
+            <h3>视听觉反应</h3>
+            <p>评估孩子对视觉和听觉刺激的反应</p>
+          </div>
+        </div>
       </div>
+
+      <button class="start-btn" @click="startTest">
+        <span>开始测试</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </button>
     </div>
-    
+
     <!-- 测试进行中 -->
     <div v-else-if="!showResult" class="test-content">
       <div class="progress-bar">
         <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
       </div>
-      
+
       <div class="question-info">
-        <span class="question-number">{{ currentQuestionIndex + 1 }} / {{ questions.length }}</span>
+        <span class="question-number">第 {{ currentQuestionIndex + 1 }} / {{ questions.length }} 题</span>
         <span class="section-tag">{{ currentQuestion.section }}</span>
       </div>
-      
+
       <div class="question-card">
-        <h2>{{ currentQuestion.title }}</h2>
+        <h2 class="question-title">{{ currentQuestion.title }}</h2>
         <p class="question-desc">{{ currentQuestion.description }}</p>
-        
+
         <div class="options-grid">
-          <div 
-            v-for="option in currentQuestion.options" 
+          <div
+            v-for="option in currentQuestion.options"
             :key="option.label"
             class="option-card"
             :class="{ selected: answers[currentQuestion.id] === option.score }"
@@ -421,63 +429,76 @@ const getSectionScores = computed(() => {
           </div>
         </div>
       </div>
-      
+
       <div class="navigation-buttons">
-        <button 
-          class="nav-btn prev-btn" 
+        <button
+          class="nav-btn prev-btn"
           @click="previousQuestion"
           :disabled="currentQuestionIndex === 0"
         >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           上一题
         </button>
-        <button 
-          class="nav-btn next-btn" 
+        <button
+          class="nav-btn next-btn"
           @click="nextQuestion"
           :disabled="!answers[currentQuestion.id]"
         >
           {{ currentQuestionIndex === questions.length - 1 ? '查看结果' : '下一题' }}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </button>
       </div>
     </div>
-    
+
     <!-- 测试结果页 -->
     <div v-else class="test-result">
-      <div class="result-header">
-        <h1>测试结果</h1>
+      <div class="result-hero">
+        <div class="hero-circle hero-circle--1"></div>
+        <div class="hero-circle hero-circle--2"></div>
+        <span class="hero-badge">测试完成</span>
         <div class="score-display">
           <div class="total-score">
             <span class="score-number">{{ totalScore }}</span>
             <span class="score-max">/ {{ questions.length * 3 }}</span>
           </div>
-          <div class="result-level" :style="{ color: getResult.color }">
+          <div class="result-level" :style="{ color: getResult.color, borderColor: getResult.color, backgroundColor: getResult.color + '18' }">
             {{ getResult.level }}
           </div>
         </div>
       </div>
-      
+
       <div class="result-content">
-        <div class="result-description">
-          <h3>结果分析</h3>
+        <div class="result-card result-description">
+          <div class="result-card-header">
+            <span class="result-card-icon">📊</span>
+            <h3>结果分析</h3>
+          </div>
           <p>{{ getResult.description }}</p>
         </div>
-        
-        <div class="result-suggestion">
-          <h3>建议</h3>
+
+        <div class="result-card result-suggestion">
+          <div class="result-card-header">
+            <span class="result-card-icon">💡</span>
+            <h3>建议</h3>
+          </div>
           <p>{{ getResult.suggestion }}</p>
         </div>
-        
-        <div class="section-breakdown">
-          <h3>各维度得分</h3>
+
+        <div class="result-card section-breakdown">
+          <div class="result-card-header">
+            <span class="result-card-icon">📈</span>
+            <h3>各维度得分</h3>
+          </div>
           <div class="section-scores">
-            <div 
-              v-for="(section, sectionName) in getSectionScores" 
+            <div
+              v-for="(section, sectionName) in getSectionScores"
               :key="sectionName"
               class="section-score-item"
             >
               <div class="section-name">{{ sectionName }}</div>
               <div class="section-score-bar">
-                <div 
-                  class="section-score-fill" 
+                <div
+                  class="section-score-fill"
                   :style="{ width: (section.score / section.maxScore) * 100 + '%' }"
                 ></div>
               </div>
@@ -488,207 +509,292 @@ const getSectionScores = computed(() => {
           </div>
         </div>
       </div>
-      
+
       <div class="result-actions">
-        <button class="restart-btn" @click="restartTest">重新测试</button>
-        <button class="export-btn">导出结果</button>
+        <button class="restart-btn" @click="restartTest">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 1 9 9"/><path d="M3 21v-6h6"/></svg>
+          重新测试
+        </button>
+        <button class="export-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          导出结果
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* ===== Layout ===== */
 .sensory-test-container {
-  max-width: 800px;
+  max-width: 820px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 2rem 1.5rem;
   min-height: 100vh;
 }
 
-/* 测试介绍页 */
+/* ===== Hero (shared intro + result) ===== */
+.intro-hero,
+.result-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #1e293b 0%, #334155 55%, #3b4a63 100%);
+  border-radius: 18px;
+  padding: 3rem 2.5rem 2.5rem;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.hero-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: #f472b6;
+  opacity: 0.07;
+  pointer-events: none;
+}
+.hero-circle--1 {
+  width: 260px;
+  height: 260px;
+  top: -80px;
+  right: -60px;
+}
+.hero-circle--2 {
+  width: 180px;
+  height: 180px;
+  bottom: -50px;
+  left: -40px;
+}
+.hero-circle--3 {
+  width: 120px;
+  height: 120px;
+  top: 40%;
+  left: 60%;
+}
+
+.hero-badge {
+  display: inline-block;
+  background: rgba(244, 114, 182, 0.18);
+  color: #f9a8d4;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 1rem;
+  border-radius: 999px;
+  margin-bottom: 1rem;
+  letter-spacing: 0.04em;
+}
+
+.hero-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 0.75rem;
+  line-height: 1.3;
+}
+
+.hero-subtitle {
+  color: #94a3b8;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin: 0;
+  max-width: 520px;
+  margin-inline: auto;
+}
+
+/* ===== Intro - Section Cards ===== */
 .test-intro {
   text-align: center;
 }
 
-.intro-content h1 {
-  font-size: 2.5rem;
-  color: #2c3e50;
-  margin-bottom: 1rem;
-}
-
-.intro-desc {
-  font-size: 1.1rem;
-  color: #666;
-  margin-bottom: 2rem;
-  line-height: 1.6;
-}
-
 .test-sections {
   display: grid;
-  gap: 1rem;
+  gap: 0.75rem;
   margin-bottom: 2rem;
   text-align: left;
 }
 
-.section-item {
+.section-card {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-  transition: transform 0.2s ease;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.section-item:hover {
-  transform: translateY(-2px);
+.section-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
 }
 
-.section-icon {
-  font-size: 2rem;
-  width: 60px;
-  height: 60px;
+.section-icon-wrap {
+  width: 52px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background: linear-gradient(135deg, #fdf2f8, #fce7f3);
+  border-radius: 14px;
+  flex-shrink: 0;
+}
+
+.section-icon {
+  font-size: 1.5rem;
+  line-height: 1;
 }
 
 .section-info h3 {
-  margin: 0 0 0.5rem 0;
-  color: #2c3e50;
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: #1e293b;
 }
 
 .section-info p {
   margin: 0;
-  color: #666;
-  font-size: 0.9rem;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
 .start-btn {
-  background: #42b883;
-  color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f472b6;
+  color: #fff;
   border: none;
-  padding: 1rem 2rem;
-  font-size: 1.1rem;
-  border-radius: 8px;
+  padding: 0.85rem 2.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: background 0.2s ease, transform 0.15s ease;
 }
 
 .start-btn:hover {
-  background: #369870;
+  background: #ec4899;
+  transform: translateY(-1px);
 }
 
-/* 测试进行中 */
+/* ===== Test In-Progress ===== */
 .test-content {
-  max-width: 600px;
+  max-width: 640px;
   margin: 0 auto;
 }
 
 .progress-bar {
   width: 100%;
-  height: 8px;
-  background: #e0e0e0;
-  border-radius: 4px;
-  margin-bottom: 2rem;
+  height: 6px;
+  background: #eef0f4;
+  border-radius: 999px;
+  margin-bottom: 1.75rem;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #42b883, #369870);
-  transition: width 0.3s ease;
+  background: linear-gradient(90deg, #f9a8d4, #f472b6);
+  border-radius: 999px;
+  transition: width 0.35s ease;
 }
 
 .question-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.25rem;
 }
 
 .question-number {
-  font-size: 1.1rem;
-  color: #666;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
 }
 
 .section-tag {
-  background: #e8f5e8;
-  color: #42b883;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
+  background: rgba(244, 114, 182, 0.1);
+  color: #f472b6;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .question-card {
-  background: white;
-  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
   padding: 2rem;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
-.question-card h2 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
+.question-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.5rem;
 }
 
 .question-desc {
-  color: #666;
-  margin-bottom: 2rem;
-  line-height: 1.6;
+  color: #64748b;
+  font-size: 0.92rem;
+  margin: 0 0 1.75rem;
+  line-height: 1.65;
 }
 
 .options-grid {
   display: grid;
-  gap: 1rem;
+  gap: 0.65rem;
 }
 
 .option-card {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  gap: 0.85rem;
+  padding: 0.9rem 1rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
 }
 
 .option-card:hover {
-  border-color: #42b883;
-  background: #f8fff8;
+  border-color: #f9a8d4;
+  background: #fdf2f8;
 }
 
 .option-card.selected {
-  border-color: #42b883;
-  background: #e8f5e8;
+  border-color: #f472b6;
+  background: rgba(244, 114, 182, 0.08);
 }
 
 .option-label {
-  width: 40px;
-  height: 40px;
-  background: #42b883;
-  color: white;
-  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  background: rgba(244, 114, 182, 0.12);
+  color: #f472b6;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
+  font-weight: 700;
+  font-size: 0.85rem;
   flex-shrink: 0;
+  transition: all 0.18s ease;
 }
 
 .option-card.selected .option-label {
-  background: #369870;
+  background: #f472b6;
+  color: #fff;
 }
 
 .option-text {
   flex: 1;
-  color: #2c3e50;
-  line-height: 1.4;
+  color: #334155;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .navigation-buttons {
@@ -698,116 +804,132 @@ const getSectionScores = computed(() => {
 }
 
 .nav-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1.4rem;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.92rem;
+  font-weight: 600;
   transition: all 0.2s ease;
 }
 
 .prev-btn {
-  background: #f0f0f0;
-  color: #666;
+  background: transparent;
+  border: 1.5px solid #e2e8f0;
+  color: #64748b;
 }
 
 .prev-btn:hover:not(:disabled) {
-  background: #e0e0e0;
+  border-color: #cbd5e1;
+  background: #f8fafc;
 }
 
 .next-btn {
-  background: #42b883;
-  color: white;
+  background: #f472b6;
+  border: 1.5px solid #f472b6;
+  color: #fff;
 }
 
 .next-btn:hover:not(:disabled) {
-  background: #369870;
+  background: #ec4899;
+  border-color: #ec4899;
 }
 
 .nav-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* 测试结果页 */
+/* ===== Result Page ===== */
 .test-result {
   text-align: center;
 }
 
-.result-header {
-  margin-bottom: 2rem;
-}
-
-.result-header h1 {
-  font-size: 2.5rem;
-  color: #2c3e50;
-  margin-bottom: 1rem;
+.result-hero {
+  padding-bottom: 2.5rem;
 }
 
 .score-display {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
 }
 
 .total-score {
-  font-size: 3rem;
-  font-weight: bold;
-  color: #2c3e50;
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.score-number {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
 }
 
 .score-max {
-  font-size: 1.5rem;
-  color: #666;
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: #94a3b8;
 }
 
 .result-level {
-  font-size: 1.5rem;
-  font-weight: bold;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  background: rgba(66, 184, 131, 0.1);
+  display: inline-block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.4rem 1.2rem;
+  border-radius: 999px;
+  border: 1.5px solid;
 }
 
+/* Result content cards */
 .result-content {
   text-align: left;
-  margin-bottom: 2rem;
+  margin-bottom: 1.75rem;
+  display: grid;
+  gap: 0.75rem;
 }
 
-.result-description,
-.result-suggestion {
-  background: #f8f9fa;
+.result-card {
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
   padding: 1.5rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
 }
 
-.result-description h3,
-.result-suggestion h3 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
+.result-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+
+.result-card-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.result-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 .result-description p,
 .result-suggestion p {
-  color: #666;
-  line-height: 1.6;
+  color: #64748b;
+  line-height: 1.7;
   margin: 0;
+  font-size: 0.9rem;
 }
 
-.section-breakdown {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.section-breakdown h3 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-}
-
+/* Section breakdown */
 .section-scores {
   display: grid;
   gap: 1rem;
@@ -815,94 +937,128 @@ const getSectionScores = computed(() => {
 
 .section-score-item {
   display: grid;
-  grid-template-columns: 1fr 2fr auto;
+  grid-template-columns: 140px 1fr auto;
   align-items: center;
   gap: 1rem;
 }
 
 .section-name {
-  font-size: 0.9rem;
-  color: #666;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .section-score-bar {
   height: 8px;
-  background: #e0e0e0;
-  border-radius: 4px;
+  background: #eef0f4;
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .section-score-fill {
   height: 100%;
-  background: linear-gradient(90deg, #42b883, #369870);
-  transition: width 0.3s ease;
+  background: linear-gradient(90deg, #f9a8d4, #f472b6);
+  border-radius: 999px;
+  transition: width 0.4s ease;
 }
 
 .section-score-text {
-  font-size: 0.9rem;
-  color: #666;
-  min-width: 60px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  min-width: 56px;
+  text-align: right;
 }
 
+/* Action buttons */
 .result-actions {
   display: flex;
   justify-content: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .restart-btn,
 .export-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.75rem 1.6rem;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.92rem;
+  font-weight: 600;
   transition: all 0.2s ease;
 }
 
 .restart-btn {
-  background: #f0f0f0;
-  color: #666;
+  background: transparent;
+  border: 1.5px solid #e2e8f0;
+  color: #64748b;
 }
 
 .restart-btn:hover {
-  background: #e0e0e0;
+  border-color: #cbd5e1;
+  background: #f8fafc;
 }
 
 .export-btn {
-  background: #42b883;
-  color: white;
+  background: #f472b6;
+  border: 1.5px solid #f472b6;
+  color: #fff;
 }
 
 .export-btn:hover {
-  background: #369870;
+  background: #ec4899;
+  border-color: #ec4899;
 }
 
-/* 响应式设计 */
+/* ===== Responsive ===== */
 @media (max-width: 768px) {
   .sensory-test-container {
     padding: 1rem;
   }
-  
-  .intro-content h1 {
-    font-size: 2rem;
+
+  .intro-hero,
+  .result-hero {
+    padding: 2rem 1.25rem 1.75rem;
+    border-radius: 14px;
   }
-  
+
+  .hero-title {
+    font-size: 1.5rem;
+  }
+
   .question-card {
-    padding: 1.5rem;
+    padding: 1.25rem;
   }
-  
+
   .navigation-buttons {
     flex-direction: column;
   }
-  
+
+  .nav-btn {
+    justify-content: center;
+  }
+
   .section-score-item {
     grid-template-columns: 1fr;
-    gap: 0.5rem;
+    gap: 0.35rem;
   }
-  
+
+  .section-score-bar {
+    width: 100%;
+  }
+
   .result-actions {
     flex-direction: column;
+  }
+
+  .restart-btn,
+  .export-btn {
+    justify-content: center;
   }
 }
 </style>

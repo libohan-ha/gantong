@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getMyProfile, type DoctorProfile as Profile } from '@/services/doctor'
@@ -291,247 +291,225 @@ const truncateContent = (content: string, maxLength = 120) => {
 
 <template>
   <div class="forum-management-container">
-    <div class="page-header">
-      <h1>家长论坛管理</h1>
-      <p class="header-desc">查看家长帖子，提供专业医疗建议和支持</p>
-    </div>
+    <!-- Hero -->
+    <section class="page-hero">
+      <div class="hero-deco">
+        <div class="deco-circle c1"></div>
+        <div class="deco-circle c2"></div>
+        <div class="deco-circle c3"></div>
+      </div>
+      <div class="hero-inner">
+        <span class="hero-badge">论坛管理</span>
+        <h1>家长论坛管理</h1>
+        <p>查看家长帖子，提供专业医疗建议和支持</p>
+      </div>
+    </section>
 
-    <div class="doctor-card">
-      <div class="doctor-info">
+    <!-- Doctor info + stats row -->
+    <section class="info-strip">
+      <div class="doctor-chip">
         <div class="doctor-avatar">{{ (doctorProfile?.name || '医').charAt(0) }}</div>
-        <div class="doctor-details">
-          <h3>{{ doctorProfile?.name || '-' }}</h3>
-          <p v-if="doctorProfile?.nickname">昵称：{{ doctorProfile?.nickname }}</p>
-          <p>{{ doctorProfile?.hospital || '-' }}</p>
+        <div class="doctor-text">
+          <span class="doctor-name">{{ doctorProfile?.name || '-' }}</span>
+          <span class="doctor-hospital">{{ doctorProfile?.hospital || '-' }}</span>
         </div>
       </div>
-    </div>
 
-    <div class="statistics-bar">
-      <div class="stat-item">
-        <span class="stat-icon">📝</span>
-        <div class="stat-content">
-          <span class="stat-value">{{ statistics.totalPosts }}</span>
-          <span class="stat-label">总帖子数</span>
+      <div class="stat-chips">
+        <div class="stat-chip">
+          <span class="chip-emoji">📝</span>
+          <span class="chip-num">{{ statistics.totalPosts }}</span>
+          <span class="chip-label">总帖子</span>
+        </div>
+        <div class="stat-chip warn">
+          <span class="chip-emoji">⏳</span>
+          <span class="chip-num">{{ statistics.unrepliedPosts }}</span>
+          <span class="chip-label">待回复</span>
+        </div>
+        <div class="stat-chip hot">
+          <span class="chip-emoji">🔥</span>
+          <span class="chip-num">{{ statistics.highUrgencyPosts }}</span>
+          <span class="chip-label">高优先</span>
+        </div>
+        <div class="stat-chip ok">
+          <span class="chip-emoji">💬</span>
+          <span class="chip-num">{{ statistics.myReplies }}</span>
+          <span class="chip-label">我的回复</span>
         </div>
       </div>
-      <div class="stat-item urgent">
-        <span class="stat-icon">⏳</span>
-        <div class="stat-content">
-          <span class="stat-value">{{ statistics.unrepliedPosts }}</span>
-          <span class="stat-label">待回复</span>
-        </div>
+    </section>
+
+    <!-- Filters -->
+    <section class="filters-card">
+      <input
+        v-model="searchKeyword"
+        type="text"
+        placeholder="搜索帖子标题、内容或作者..."
+        class="search-input"
+      />
+      <div class="filter-row">
+        <select v-model="filterCategory" class="filter-select">
+          <option v-for="category in categoryOptions" :key="category" :value="category">{{ category }}</option>
+        </select>
+        <select v-model="filterUrgency" class="filter-select">
+          <option v-for="option in urgencyOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+        <select v-model="filterStatus" class="filter-select">
+          <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+        <select v-model="sortBy" class="filter-select">
+          <option v-for="option in sortOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
       </div>
-      <div class="stat-item priority">
-        <span class="stat-icon">🔥</span>
-        <div class="stat-content">
-          <span class="stat-value">{{ statistics.highUrgencyPosts }}</span>
-          <span class="stat-label">高优先级</span>
-        </div>
+    </section>
+
+    <!-- Posts -->
+    <section class="posts-section">
+      <div class="section-label">
+        <h2>帖子列表</h2>
+        <span class="section-line"></span>
+        <span class="post-count">{{ filteredPosts.length }} 条</span>
       </div>
-      <div class="stat-item replied">
-        <span class="stat-icon">💬</span>
-        <div class="stat-content">
-          <span class="stat-value">{{ statistics.myReplies }}</span>
-          <span class="stat-label">我的回复</span>
-        </div>
-      </div>
-    </div>
 
-    <div class="filters-section">
-      <div class="filters-row">
-        <div class="search-group">
-          <input
-            v-model="searchKeyword"
-            type="text"
-            placeholder="搜索帖子标题、内容或作者..."
-            class="search-input"
-          />
-        </div>
-
-        <div class="filter-group">
-          <select v-model="filterCategory" class="filter-select">
-            <option v-for="category in categoryOptions" :key="category" :value="category">
-              {{ category }}
-            </option>
-          </select>
-
-          <select v-model="filterUrgency" class="filter-select">
-            <option v-for="option in urgencyOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-
-          <select v-model="filterStatus" class="filter-select">
-            <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-
-          <select v-model="sortBy" class="filter-select">
-            <option v-for="option in sortOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <div class="posts-list">
-      <div
-        v-for="post in filteredPosts"
-        :key="post.id"
-        class="post-card"
-        :class="{ sticky: post.isSticky, 'high-priority': post.urgencyLevel === 'high', unreplied: !post.hasDoctoReply }"
-      >
-        <div class="post-header">
-          <div class="post-meta">
-            <div class="urgency-badge">
-              <span class="urgency-icon">{{ getUrgencyInfo(post.urgencyLevel).icon }}</span>
-              <span
-                class="urgency-text"
-                :style="{ color: getUrgencyInfo(post.urgencyLevel).color, backgroundColor: getUrgencyInfo(post.urgencyLevel).bgColor }"
-              >
-                {{ getUrgencyInfo(post.urgencyLevel).text }}优先级
-              </span>
-            </div>
-
-            <div class="category-tag">{{ post.category }}</div>
-
-            <div v-if="!post.hasDoctoReply" class="reply-status unreplied">待回复</div>
-            <div v-else class="reply-status replied">已回复</div>
+      <div class="posts-list">
+        <div
+          v-for="post in filteredPosts"
+          :key="post.id"
+          class="post-card"
+          :class="{ 'high-priority': post.urgencyLevel === 'high', unreplied: !post.hasDoctoReply }"
+        >
+          <div class="post-left">
+            <div class="post-author-avatar">{{ post.author.name.charAt(0) }}</div>
           </div>
 
-          <div class="post-time">{{ formatDateTime(post.createdAt) }}</div>
-        </div>
+          <div class="post-body">
+            <div class="post-head">
+              <div class="post-badges">
+                <span
+                  class="urgency-pill"
+                  :style="{ color: getUrgencyInfo(post.urgencyLevel).color, background: getUrgencyInfo(post.urgencyLevel).bgColor }"
+                >
+                  {{ getUrgencyInfo(post.urgencyLevel).icon }} {{ getUrgencyInfo(post.urgencyLevel).text }}
+                </span>
+                <span class="category-pill">{{ post.category }}</span>
+                <span v-if="!post.hasDoctoReply" class="status-pill pending">待回复</span>
+                <span v-else class="status-pill done">已回复</span>
+              </div>
+              <span class="post-time">{{ formatDateTime(post.createdAt) }}</span>
+            </div>
 
-        <div class="post-content">
-          <h3 class="post-title">{{ post.title }}</h3>
-          <p class="post-preview">{{ truncateContent(post.content) }}</p>
+            <h3 class="post-title" @click="viewPostDetail(post)">{{ post.title }}</h3>
+            <p class="post-preview">{{ truncateContent(post.content) }}</p>
 
-          <div class="author-info">
-            <div class="author-avatar">{{ post.author.name.charAt(0) }}</div>
-            <div class="author-details">
-              <div class="author-name">{{ post.author.name }}</div>
-              <div class="author-meta">
-                <span v-if="post.author.childAge">孩子{{ post.author.childAge }}岁</span>
-                <span v-if="post.author.location">{{ post.author.location }}</span>
+            <div class="post-author-line">
+              <span class="author-name-text">{{ post.author.name }}</span>
+              <span v-if="post.author.childAge" class="author-extra">孩子{{ post.author.childAge }}岁</span>
+              <span v-if="post.author.location" class="author-extra">{{ post.author.location }}</span>
+            </div>
+
+            <div v-if="post.tags.length" class="post-tags">
+              <span v-for="tag in post.tags" :key="tag" class="post-tag">#{{ tag }}</span>
+            </div>
+
+            <div class="post-bottom">
+              <div class="post-stats">
+                <span>👁 {{ post.views }}</span>
+                <span>👍 {{ post.likes }}</span>
+                <span>💬 {{ post.replies }}</span>
+              </div>
+              <div class="post-actions">
+                <button class="act-btn" @click="viewPostDetail(post)">查看详情</button>
+                <button class="act-btn primary" @click="replyToPost(post)">
+                  {{ post.hasDoctoReply ? '继续回复' : '专业回复' }}
+                </button>
               </div>
             </div>
           </div>
-
-          <div class="post-tags">
-            <span v-for="tag in post.tags" :key="tag" class="post-tag">#{{ tag }}</span>
-          </div>
-        </div>
-
-        <div class="post-stats">
-          <span class="stat-item">浏览 {{ post.views }}</span>
-          <span class="stat-item">点赞 {{ post.likes }}</span>
-          <span class="stat-item">回复 {{ post.replies }}</span>
-        </div>
-
-        <div class="post-actions">
-          <button class="action-btn view-btn" @click="viewPostDetail(post)">查看详情</button>
-          <button class="action-btn reply-btn" @click="replyToPost(post)" :class="{ primary: !post.hasDoctoReply }">
-            {{ post.hasDoctoReply ? '继续回复' : '专业回复' }}
-          </button>
         </div>
       </div>
-    </div>
 
-    <div v-if="filteredPosts.length === 0" class="no-posts">
-      <p>暂时没有相关帖子</p>
-    </div>
+      <div v-if="filteredPosts.length === 0" class="no-posts">
+        <p>暂时没有相关帖子</p>
+      </div>
+    </section>
 
+    <!-- Post Detail Modal -->
     <div v-if="showPostDetail" class="modal-overlay" @click="closeModal">
-      <div class="post-detail-modal" @click.stop>
+      <div class="modal-panel large" @click.stop>
         <div class="modal-header">
           <h2>帖子详情</h2>
           <button class="close-btn" @click="closeModal">×</button>
         </div>
 
-        <div v-if="selectedPost" class="modal-content">
-          <div class="post-detail">
-            <div class="post-detail-header">
-              <div class="urgency-info">
-                <span class="urgency-icon">{{ getUrgencyInfo(selectedPost.urgencyLevel).icon }}</span>
-                <span
-                  class="urgency-label"
-                  :style="{ color: getUrgencyInfo(selectedPost.urgencyLevel).color, backgroundColor: getUrgencyInfo(selectedPost.urgencyLevel).bgColor }"
-                >
-                  {{ getUrgencyInfo(selectedPost.urgencyLevel).text }}优先级
-                </span>
-              </div>
+        <div v-if="selectedPost" class="modal-body">
+          <div class="detail-top-badges">
+            <span
+              class="urgency-pill"
+              :style="{ color: getUrgencyInfo(selectedPost.urgencyLevel).color, background: getUrgencyInfo(selectedPost.urgencyLevel).bgColor }"
+            >
+              {{ getUrgencyInfo(selectedPost.urgencyLevel).icon }} {{ getUrgencyInfo(selectedPost.urgencyLevel).text }}优先级
+            </span>
+            <span class="category-pill">{{ selectedPost.category }}</span>
+          </div>
 
-              <div class="category-info">
-                <span class="category-label">{{ selectedPost.category }}</span>
-              </div>
-            </div>
+          <h1 class="detail-title">{{ selectedPost.title }}</h1>
 
-            <h1 class="post-detail-title">{{ selectedPost.title }}</h1>
-
-            <div class="author-section">
-              <div class="author-avatar large">{{ selectedPost.author.name.charAt(0) }}</div>
-              <div class="author-details">
-                <div class="author-name">{{ selectedPost.author.name }}</div>
-                <div class="author-meta">
-                  <span v-if="selectedPost.author.childAge">孩子{{ selectedPost.author.childAge }}岁</span>
-                  <span v-if="selectedPost.author.location">{{ selectedPost.author.location }}</span>
-                </div>
-                <div class="post-time">{{ formatDateTime(selectedPost.createdAt) }}</div>
-              </div>
-            </div>
-
-            <div class="post-detail-content">{{ selectedPost.content }}</div>
-
-            <div class="post-detail-tags">
-              <span v-for="tag in selectedPost.tags" :key="tag" class="post-tag">#{{ tag }}</span>
-            </div>
-
-            <div class="post-detail-stats">
-              <span class="stat-item">浏览 {{ selectedPost.views }}</span>
-              <span class="stat-item">点赞 {{ selectedPost.likes }}</span>
-              <span class="stat-item">回复 {{ selectedPost.replies }}</span>
+          <div class="detail-author">
+            <div class="post-author-avatar">{{ selectedPost.author.name.charAt(0) }}</div>
+            <div class="detail-author-info">
+              <span class="author-name-text">{{ selectedPost.author.name }}</span>
+              <span class="detail-meta">
+                <span v-if="selectedPost.author.childAge">孩子{{ selectedPost.author.childAge }}岁</span>
+                <span v-if="selectedPost.author.location">{{ selectedPost.author.location }}</span>
+                <span>{{ formatDateTime(selectedPost.createdAt) }}</span>
+              </span>
             </div>
           </div>
 
+          <div class="detail-content">{{ selectedPost.content }}</div>
+
+          <div v-if="selectedPost.tags.length" class="post-tags">
+            <span v-for="tag in selectedPost.tags" :key="tag" class="post-tag">#{{ tag }}</span>
+          </div>
+
+          <div class="detail-stats">
+            <span>👁 {{ selectedPost.views }}</span>
+            <span>👍 {{ selectedPost.likes }}</span>
+            <span>💬 {{ selectedPost.replies }}</span>
+          </div>
+
           <div class="replies-section">
-            <h3>回复 ({{ getPostReplies(selectedPost.id).length }})</h3>
+            <div class="replies-header">
+              <h3>回复 ({{ getPostReplies(selectedPost.id).length }})</h3>
+            </div>
 
             <div class="replies-list">
               <div
                 v-for="reply in getPostReplies(selectedPost.id)"
                 :key="reply.id"
-                class="reply-item"
+                class="reply-card"
                 :class="{ official: reply.isOfficial }"
               >
-                <div class="reply-header">
-                  <div class="reply-author">
-                    <div class="author-avatar" :class="{ doctor: reply.author.isDoctor }">
+                <div class="reply-top">
+                  <div class="reply-author-row">
+                    <div class="reply-avatar" :class="{ doctor: reply.author.isDoctor }">
                       {{ reply.author.name.charAt(0) }}
                     </div>
-                    <div class="author-details">
-                      <div class="author-name">
+                    <div class="reply-author-info">
+                      <span class="reply-name">
                         {{ reply.author.name }}
-                        <span v-if="reply.author.isDoctor" class="doctor-badge">医生</span>
-                      </div>
-                      <div class="author-info">
+                        <span v-if="reply.author.isDoctor" class="doctor-tag">医生</span>
+                      </span>
+                      <span class="reply-meta">
                         <span v-if="reply.author.title">{{ reply.author.title }}</span>
                         <span v-if="reply.author.hospital">{{ reply.author.hospital }}</span>
-                      </div>
-                      <div class="reply-time">{{ formatDateTime(reply.createdAt) }}</div>
+                        <span>{{ formatDateTime(reply.createdAt) }}</span>
+                      </span>
                     </div>
                   </div>
-
-                  <div v-if="reply.isOfficial" class="official-badge">官方回复</div>
+                  <span v-if="reply.isOfficial" class="official-tag">官方回复</span>
                 </div>
-
-                <div class="reply-content">{{ reply.content }}</div>
-
-                <div class="reply-actions">
-                  <span class="stat-item">点赞 {{ reply.likes }}</span>
-                </div>
+                <div class="reply-body">{{ reply.content }}</div>
               </div>
             </div>
 
@@ -539,8 +517,8 @@ const truncateContent = (content: string, maxLength = 120) => {
               <p>还没有回复</p>
             </div>
 
-            <div class="quick-reply">
-              <button class="reply-btn primary" @click="replyToPost(selectedPost)">
+            <div class="reply-cta">
+              <button class="act-btn primary" @click="replyToPost(selectedPost)">
                 {{ selectedPost.hasDoctoReply ? '继续回复' : '专业回复' }}
               </button>
             </div>
@@ -549,17 +527,18 @@ const truncateContent = (content: string, maxLength = 120) => {
       </div>
     </div>
 
+    <!-- Reply Modal -->
     <div v-if="showReplyModal" class="modal-overlay" @click="closeModal">
-      <div class="reply-modal" @click.stop>
+      <div class="modal-panel" @click.stop>
         <div class="modal-header">
           <h2>专业回复</h2>
           <button class="close-btn" @click="closeModal">×</button>
         </div>
 
-        <div v-if="selectedPost" class="modal-content">
-          <div class="post-summary">
+        <div v-if="selectedPost" class="modal-body">
+          <div class="post-summary-card">
             <h4>{{ selectedPost.title }}</h4>
-            <p class="post-excerpt">{{ truncateContent(selectedPost.content, 200) }}</p>
+            <p>{{ truncateContent(selectedPost.content, 200) }}</p>
           </div>
 
           <form @submit.prevent="submitDoctorReply" class="reply-form">
@@ -580,8 +559,8 @@ const truncateContent = (content: string, maxLength = 120) => {
               </label>
             </div>
 
-            <div class="reply-tips">
-              <h5>专业回复指导：</h5>
+            <div class="tips-card">
+              <h5>💡 专业回复指导</h5>
               <ul>
                 <li>基于专业知识提供建议，避免做确诊性表述</li>
                 <li>语言温和友善，给予家长情绪支持</li>
@@ -591,8 +570,8 @@ const truncateContent = (content: string, maxLength = 120) => {
             </div>
 
             <div class="form-actions">
-              <button type="button" class="cancel-btn" @click="closeModal">取消</button>
-              <button type="submit" class="submit-btn">发布回复</button>
+              <button type="button" class="act-btn" @click="closeModal">取消</button>
+              <button type="submit" class="act-btn primary">发布回复</button>
             </div>
           </form>
         </div>
@@ -603,402 +582,281 @@ const truncateContent = (content: string, maxLength = 120) => {
 
 <style scoped>
 .forum-management-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
+  max-width: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-/* 椤甸潰澶撮儴 */
-.page-header {
+/* ── Hero ── */
+.page-hero {
+  position: relative;
   text-align: center;
-  margin-bottom: 2rem;
+  padding: 2.5rem 2rem 2rem;
+  background: linear-gradient(160deg, #1e293b 0%, #334155 55%, #3b4a63 100%);
+  border-radius: 18px;
+  color: #fff;
+  overflow: hidden;
 }
 
-.page-header h1 {
-  font-size: 2.5rem;
-  color: #2c3e50;
-  margin-bottom: 0.5rem;
+.hero-inner { position: relative; z-index: 1; }
+
+.hero-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.75rem;
+  background: rgba(245, 158, 66, 0.22);
+  color: #fbbf68;
+  border-radius: 999px;
+  margin-bottom: 0.7rem;
+  letter-spacing: 0.5px;
 }
 
-.header-desc {
-  color: #666;
-  font-size: 1.1rem;
-}
+.page-hero h1 { font-size: 1.6rem; font-weight: 700; margin: 0 0 0.3rem; }
+.page-hero p { margin: 0; font-size: 0.88rem; color: #94a3b8; }
 
-/* 鍖荤敓淇℃伅鍗＄墖 */
-.doctor-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  color: white;
-}
+.deco-circle { position: absolute; border-radius: 50%; opacity: 0.07; }
+.c1 { width: 200px; height: 200px; background: #f59e42; top: -60px; right: -30px; }
+.c2 { width: 120px; height: 120px; background: #5b8def; bottom: -40px; left: 5%; }
+.c3 { width: 80px; height: 80px; background: #a78bfa; top: 20%; left: -15px; }
 
-.doctor-info {
+/* ── Info strip ── */
+.info-strip {
   display: flex;
   align-items: center;
-  gap: 1rem;
-}
-
-.doctor-avatar {
-  width: 60px;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  backdrop-filter: blur(10px);
-}
-
-.doctor-details h3 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.3rem;
-}
-
-.doctor-details p {
-  margin: 0 0 0.25rem 0;
-  opacity: 0.9;
-}
-
-/* 缁熻淇℃伅 */
-.statistics-bar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.stat-item {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.stat-item.urgent {
-  border-left: 4px solid #f44336;
-}
-
-.stat-item.priority {
-  border-left: 4px solid #ff9800;
-}
-
-.stat-item.replied {
-  border-left: 4px solid #4caf50;
-}
-
-.stat-icon {
-  font-size: 2rem;
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #2c3e50;
-  display: block;
-}
-
-.stat-label {
-  color: #666;
-  font-size: 0.9rem;
-}
-
-/* 绛涢€夊尯鍩?*/
-.filters-section {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  margin-bottom: 2rem;
-}
-
-.filters-row {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
+  gap: 1.25rem;
   flex-wrap: wrap;
 }
 
-.search-group {
+.doctor-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 14px;
+  padding: 0.75rem 1.15rem;
+}
+
+.doctor-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #5b8def, #a78bfa);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.doctor-text { display: flex; flex-direction: column; }
+.doctor-name { font-size: 0.92rem; font-weight: 650; color: #1e293b; }
+.doctor-hospital { font-size: 0.78rem; color: #94a3b8; }
+
+.stat-chips { display: flex; gap: 0.65rem; flex: 1; flex-wrap: wrap; }
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 12px;
+  padding: 0.6rem 1rem;
   flex: 1;
-  min-width: 300px;
+  min-width: 110px;
+}
+
+.chip-emoji { font-size: 1.1rem; }
+.chip-num { font-size: 1.15rem; font-weight: 750; color: #1e293b; line-height: 1; }
+.chip-label { font-size: 0.78rem; color: #94a3b8; }
+
+/* ── Filters ── */
+.filters-card {
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .search-input {
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
-}
-
-.search-input:focus {
+  padding: 0.65rem 1rem;
+  border: 1.5px solid #e8eaef;
+  border-radius: 10px;
+  font-size: 0.88rem;
   outline: none;
-  border-color: #42b883;
+  transition: border-color 0.2s;
 }
 
-.filter-group {
+.search-input:focus { border-color: #f59e42; }
+
+.filter-row {
   display: flex;
   gap: 0.5rem;
-  align-items: center;
   flex-wrap: wrap;
 }
 
 .filter-select {
-  padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: white;
+  flex: 1;
+  min-width: 120px;
+  padding: 0.55rem 0.75rem;
+  border: 1.5px solid #e8eaef;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  color: #334155;
+  background: #fff;
+  outline: none;
   cursor: pointer;
 }
 
-/* 甯栧瓙鍒楄〃 */
+.filter-select:focus { border-color: #f59e42; }
+
+/* ── Section label ── */
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.section-label h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.section-line { flex: 1; height: 1px; background: #e8eaef; }
+.post-count { font-size: 0.82rem; color: #94a3b8; white-space: nowrap; }
+
+/* ── Post cards ── */
 .posts-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .post-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: all 0.3s ease;
-  border-left: 4px solid transparent;
+  display: flex;
+  gap: 1rem;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
+  padding: 1.25rem;
+  transition: all 0.28s ease;
 }
 
 .post-card:hover {
+  border-color: transparent;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-.post-card.high-priority {
-  border-left-color: #f44336;
-  background: linear-gradient(135deg, #ffebee 0%, #ffffff 100%);
-}
+.post-card.unreplied { border-left: 3px solid #f59e42; }
+.post-card.high-priority { border-left: 3px solid #ef4444; }
 
-.post-card.unreplied {
-  border-left-color: #ff9800;
-}
+.post-left { flex-shrink: 0; }
 
-.post-card.sticky {
-  border-left-color: #ffc107;
-  background: linear-gradient(135deg, #fff9c4 0%, #ffffff 100%);
-}
-
-.post-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-}
-
-.post-meta {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.urgency-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.urgency-icon {
-  font-size: 1rem;
-}
-
-.urgency-text {
-  padding: 0.2rem 0.5rem;
+.post-author-avatar {
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.category-tag {
-  background: #e8f5e8;
-  color: #42b883;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-}
-
-.reply-status {
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.reply-status.unreplied {
-  background: #fff3e0;
-  color: #ff9800;
-}
-
-.reply-status.replied {
-  background: #e8f5e8;
-  color: #4caf50;
-}
-
-.post-time {
-  color: #666;
-  font-size: 0.9rem;
-}
-
-.post-content {
-  margin-bottom: 1rem;
-}
-
-.post-title {
-  color: #2c3e50;
-  margin-bottom: 0.75rem;
-  font-size: 1.2rem;
-  line-height: 1.4;
-}
-
-.post-preview {
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 1rem;
-}
-
-.author-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.author-avatar {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 50%;
+  background: linear-gradient(135deg, #f59e42, #f97316);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 700;
   font-size: 1rem;
-  font-weight: bold;
-  color: white;
 }
 
-.author-avatar.large {
-  width: 60px;
-  height: 60px;
-  font-size: 1.5rem;
-}
+.post-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 
-.author-avatar.doctor {
-  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
-}
+.post-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem; }
 
-.author-name {
-  font-weight: 500;
-  color: #2c3e50;
-}
+.post-badges { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
 
-.author-meta {
-  color: #666;
-  font-size: 0.9rem;
-  display: flex;
-  gap: 1rem;
-}
-
-.post-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
-}
-
-.post-tag {
-  background: #f0f8ff;
-  color: #2196f3;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-}
-
-.post-stats {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #f0f0f0;
-  margin-bottom: 1rem;
-}
-
-.stat-item {
-  color: #666;
-  font-size: 0.9rem;
-}
-
-.post-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.action-btn {
-  flex: 1;
-  padding: 0.5rem 1rem;
-  border: none;
+.urgency-pill,
+.category-pill,
+.status-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.18rem 0.55rem;
   border-radius: 6px;
+}
+
+.category-pill { background: #f1f3f7; color: #475569; }
+
+.status-pill.pending { background: #fff8ee; color: #d97706; }
+.status-pill.done { background: #edfaf5; color: #059669; }
+
+.post-time { font-size: 0.78rem; color: #94a3b8; white-space: nowrap; }
+
+.post-title {
+  font-size: 1rem;
+  font-weight: 650;
+  color: #1e293b;
+  margin: 0;
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
+  transition: color 0.2s;
 }
 
-.view-btn {
-  background: #e3f2fd;
-  color: #2196f3;
+.post-title:hover { color: #f59e42; }
+
+.post-preview { font-size: 0.84rem; color: #64748b; line-height: 1.6; margin: 0; }
+
+.post-author-line { display: flex; gap: 0.6rem; align-items: center; font-size: 0.8rem; }
+.author-name-text { font-weight: 600; color: #334155; }
+.author-extra { color: #94a3b8; }
+
+.post-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.post-tag { font-size: 0.75rem; color: #5b8def; }
+
+.post-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem; }
+
+.post-stats { display: flex; gap: 0.85rem; font-size: 0.78rem; color: #94a3b8; }
+
+.post-actions { display: flex; gap: 0.5rem; }
+
+.act-btn {
+  padding: 0.4rem 0.9rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.view-btn:hover {
-  background: #bbdefb;
+.act-btn:hover { border-color: #cbd5e1; background: #f8fafc; }
+
+.act-btn.primary {
+  background: #f59e42;
+  color: #fff;
+  border-color: #f59e42;
 }
 
-.reply-btn {
-  background: #f0f0f0;
-  color: #666;
-}
+.act-btn.primary:hover { background: #e58e35; border-color: #e58e35; }
 
-.reply-btn:hover {
-  background: #e0e0e0;
-}
+.no-posts { text-align: center; padding: 3rem; color: #94a3b8; }
 
-.reply-btn.primary {
-  background: #42b883;
-  color: white;
-}
-
-.reply-btn.primary:hover {
-  background: #369870;
-}
-
-.no-posts {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #666;
-}
-
-/* 寮圭獥鏍峰紡 */
+/* ── Modal ── */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1006,403 +864,204 @@ const truncateContent = (content: string, maxLength = 120) => {
   padding: 1rem;
 }
 
-.post-detail-modal,
-.reply-modal {
-  background: white;
-  border-radius: 12px;
-  max-width: 800px;
+.modal-panel {
+  background: #fff;
+  border-radius: 18px;
   width: 100%;
+  max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
 }
+
+.modal-panel.large { max-width: 800px; }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f1f3f7;
 }
 
-.modal-header h2 {
-  margin: 0;
-  color: #2c3e50;
-}
+.modal-header h2 { margin: 0; font-size: 1.15rem; font-weight: 700; color: #1e293b; }
 
 .close-btn {
-  background: none;
+  width: 32px;
+  height: 32px;
   border: none;
-  font-size: 2rem;
+  background: #f1f3f7;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  color: #64748b;
   cursor: pointer;
-  color: #999;
-  padding: 0;
-  width: 30px;
-  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.2s;
 }
 
-.close-btn:hover {
-  color: #666;
+.close-btn:hover { background: #e2e8f0; }
+
+.modal-body { padding: 1.5rem; }
+
+/* Detail modal */
+.detail-top-badges { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+
+.detail-title { font-size: 1.35rem; font-weight: 700; color: #1e293b; margin: 0 0 1rem; line-height: 1.4; }
+
+.detail-author { display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1.25rem; }
+
+.detail-author-info { display: flex; flex-direction: column; }
+
+.detail-meta { font-size: 0.78rem; color: #94a3b8; display: flex; gap: 0.5rem; }
+
+.detail-content { color: #334155; line-height: 1.75; white-space: pre-wrap; margin-bottom: 1rem; }
+
+.detail-stats { display: flex; gap: 1rem; font-size: 0.82rem; color: #94a3b8; padding-bottom: 1.25rem; border-bottom: 1px solid #f1f3f7; margin-bottom: 1.25rem; }
+
+/* Replies */
+.replies-section { display: flex; flex-direction: column; gap: 1rem; }
+
+.replies-header h3 { margin: 0; font-size: 1rem; font-weight: 650; color: #1e293b; }
+
+.replies-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.reply-card {
+  background: #f8fafc;
+  border: 1px solid #eef0f4;
+  border-radius: 14px;
+  padding: 1rem 1.15rem;
 }
 
-.modal-content {
-  padding: 1.5rem;
-}
+.reply-card.official { border-left: 3px solid #4ec3a0; background: #f7fdfb; }
 
-/* 甯栧瓙璇︽儏鏍峰紡 */
-.post-detail-header {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  margin-bottom: 1rem;
-}
+.reply-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.65rem; }
 
-.urgency-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+.reply-author-row { display: flex; align-items: center; gap: 0.65rem; }
 
-.urgency-label {
-  padding: 0.3rem 0.75rem;
-  border-radius: 16px;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.category-info .category-label {
-  background: #e8f5e8;
-  color: #42b883;
-  padding: 0.3rem 0.75rem;
-  border-radius: 16px;
-  font-size: 0.9rem;
-}
-
-.post-detail-title {
-  color: #2c3e50;
-  margin-bottom: 1.5rem;
-  font-size: 1.6rem;
-  line-height: 1.4;
-}
-
-.author-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.post-detail-content {
-  color: #2c3e50;
-  line-height: 1.8;
-  margin-bottom: 1.5rem;
-  white-space: pre-wrap;
-}
-
-.post-detail-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.post-detail-stats {
+.reply-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #e2e8f0;
+  color: #475569;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-top: 1px solid #f0f0f0;
-  border-bottom: 1px solid #f0f0f0;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
 }
 
-/* 鍥炲鍖哄煙 */
-.replies-section h3 {
-  color: #2c3e50;
-  margin-bottom: 1rem;
-}
+.reply-avatar.doctor { background: linear-gradient(135deg, #5b8def, #a78bfa); color: #fff; }
 
-.replies-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
+.reply-author-info { display: flex; flex-direction: column; }
+.reply-name { font-size: 0.88rem; font-weight: 600; color: #1e293b; }
 
-.reply-item {
-  background: #f8f9fa;
-  padding: 1rem;
-  border-radius: 8px;
-  border-left: 3px solid transparent;
-}
-
-.reply-item.official {
-  background: #e8f5e8;
-  border-left-color: #42b883;
-}
-
-.reply-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.75rem;
-}
-
-.reply-author {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.doctor-badge {
-  background: #42b883;
-  color: white;
+.doctor-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: #5b8def;
+  color: #fff;
   padding: 0.1rem 0.4rem;
-  border-radius: 8px;
+  border-radius: 5px;
+  margin-left: 0.35rem;
+}
+
+.reply-meta { font-size: 0.75rem; color: #94a3b8; display: flex; gap: 0.4rem; }
+
+.official-tag {
   font-size: 0.7rem;
-  margin-left: 0.5rem;
+  font-weight: 600;
+  background: #edfaf5;
+  color: #059669;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
 }
 
-.author-info {
-  color: #666;
-  font-size: 0.8rem;
-}
+.reply-body { font-size: 0.88rem; color: #334155; line-height: 1.65; white-space: pre-wrap; }
 
-.reply-time {
-  color: #666;
-  font-size: 0.8rem;
-  margin-top: 0.25rem;
-}
+.no-replies { text-align: center; padding: 1.5rem; color: #94a3b8; font-size: 0.88rem; }
 
-.official-badge {
-  background: #42b883;
-  color: white;
-  padding: 0.25rem 0.5rem;
+.reply-cta { text-align: center; padding-top: 0.75rem; border-top: 1px solid #f1f3f7; }
+
+/* Reply form modal */
+.post-summary-card {
+  background: #f8fafc;
+  border: 1px solid #eef0f4;
   border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.reply-content {
-  color: #2c3e50;
-  line-height: 1.6;
-  margin-bottom: 0.75rem;
-  white-space: pre-wrap;
-}
-
-.reply-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.no-replies {
-  text-align: center;
-  padding: 2rem;
-  color: #666;
-}
-
-.quick-reply {
-  text-align: center;
-  padding-top: 1rem;
-  border-top: 1px solid #e0e0e0;
-}
-
-/* 鍥炲琛ㄥ崟 */
-.post-summary {
-  background: #f8f9fa;
   padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
-.post-summary h4 {
-  color: #2c3e50;
-  margin: 0 0 0.5rem 0;
-}
+.post-summary-card h4 { font-size: 0.95rem; font-weight: 650; color: #1e293b; margin: 0 0 0.35rem; }
+.post-summary-card p { font-size: 0.84rem; color: #64748b; margin: 0; line-height: 1.5; }
 
-.post-excerpt {
-  color: #666;
-  margin: 0;
-  line-height: 1.5;
-}
+.reply-form { display: flex; flex-direction: column; gap: 1.15rem; }
 
-.reply-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-group label {
-  color: #2c3e50;
-  font-weight: 500;
-}
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.form-group label { font-size: 0.88rem; font-weight: 600; color: #1e293b; }
 
 .form-group textarea {
-  padding: 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  padding: 0.85rem;
+  border: 1.5px solid #e8eaef;
+  border-radius: 10px;
   resize: vertical;
   font-family: inherit;
+  font-size: 0.88rem;
   line-height: 1.6;
+  outline: none;
+  transition: border-color 0.2s;
 }
 
-.form-group textarea:focus {
-  outline: none;
-  border-color: #42b883;
-}
+.form-group textarea:focus { border-color: #f59e42; }
 
 .checkbox-label {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
+  font-size: 0.88rem;
+  color: #334155;
 }
 
-.checkbox-label input[type="checkbox"] {
-  width: auto;
+.checkbox-label input[type="checkbox"] { width: auto; }
+
+.tips-card {
+  background: #fffbf5;
+  border: 1px solid #fde8cd;
+  border-radius: 12px;
+  padding: 1rem 1.15rem;
 }
 
-.reply-tips {
-  background: #e3f2fd;
-  padding: 1rem;
-  border-radius: 8px;
-  border-left: 4px solid #2196f3;
-}
+.tips-card h5 { color: #d97706; margin: 0 0 0.65rem; font-size: 0.88rem; }
 
-.reply-tips h5 {
-  color: #2196f3;
-  margin: 0 0 0.75rem 0;
-}
+.tips-card ul { margin: 0; padding-left: 1.25rem; }
 
-.reply-tips ul {
-  margin: 0;
-  padding-left: 1.5rem;
-}
+.tips-card li { color: #64748b; margin-bottom: 0.35rem; line-height: 1.5; font-size: 0.84rem; }
 
-.reply-tips li {
-  color: #666;
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
+.form-actions { display: flex; gap: 0.65rem; justify-content: flex-end; }
 
-.form-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-}
-
-.form-actions .cancel-btn,
-.form-actions .submit-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.3s ease;
-}
-
-.form-actions .cancel-btn {
-  background: #f0f0f0;
-  color: #666;
-}
-
-.form-actions .cancel-btn:hover {
-  background: #e0e0e0;
-}
-
-.form-actions .submit-btn {
-  background: #42b883;
-  color: white;
-}
-
-.form-actions .submit-btn:hover {
-  background: #369870;
-}
-
-/* 鍝嶅簲寮忚璁?*/
+/* ── Responsive ── */
 @media (max-width: 768px) {
-  .forum-management-container {
-    padding: 1rem;
-  }
+  .info-strip { flex-direction: column; }
 
-  .page-header h1 {
-    font-size: 2rem;
-  }
+  .stat-chips { width: 100%; }
 
-  .statistics-bar {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
+  .filter-row { flex-direction: column; }
 
-  .doctor-info {
-    flex-direction: column;
-    text-align: center;
-  }
+  .post-card { flex-direction: column; }
 
-  .filters-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  .post-head { flex-direction: column; align-items: flex-start; }
 
-  .search-group {
-    min-width: auto;
-  }
+  .post-bottom { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 
-  .filter-group {
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
+  .modal-panel { border-radius: 14px; }
 
-  .post-header {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
+  .detail-author { flex-direction: column; align-items: flex-start; }
 
-  .post-meta {
-    flex-wrap: wrap;
-  }
+  .reply-top { flex-direction: column; gap: 0.4rem; }
 
-  .author-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .post-actions {
-    flex-direction: column;
-  }
-
-  .post-detail-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .author-section {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .reply-header {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .form-actions {
-    flex-direction: column;
-  }
+  .form-actions { flex-direction: column; }
 }
 </style>
-
-
-
-

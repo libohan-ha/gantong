@@ -195,34 +195,37 @@ const trainingStats = computed(() => {
 
 <template>
   <div class="training-base">
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <div class="header-content">
-        <div class="title-section">
-          <h1>🎯 感统训练基地</h1>
-          <p>专业的感觉统合训练项目，帮助孩子全面发展</p>
+    <!-- 深色渐变英雄头部 -->
+    <div class="hero-header">
+      <div class="hero-deco hero-deco--1"></div>
+      <div class="hero-deco hero-deco--2"></div>
+      <div class="hero-deco hero-deco--3"></div>
+      <div class="hero-badge">训练基地</div>
+      <h1 class="hero-title">感统训练基地</h1>
+      <p class="hero-subtitle">专业的感觉统合训练项目，帮助孩子全面发展</p>
+      <div class="hero-chips">
+        <div class="stat-chip">
+          <span class="chip-num">{{ trainingStats.total }}</span>
+          <span class="chip-label">训练项目</span>
         </div>
-        <div class="stats-section">
-          <div class="stat-item">
-            <div class="stat-number">{{ trainingStats.total }}</div>
-            <div class="stat-label">训练项目</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number">{{ categories.length - 1 }}</div>
-            <div class="stat-label">训练类别</div>
-          </div>
+        <div class="stat-chip">
+          <span class="chip-num">{{ categories.length - 1 }}</span>
+          <span class="chip-label">训练类别</span>
         </div>
       </div>
     </div>
 
     <!-- 类别统计 -->
     <div class="category-stats">
+      <div class="section-header">
+        <h2 class="section-title">训练类别</h2>
+        <div class="section-line"></div>
+      </div>
       <div class="stats-grid">
-        <div 
-          v-for="category in trainingStats.categories" 
+        <div
+          v-for="category in trainingStats.categories"
           :key="category.name"
           class="category-stat"
-          :style="{ borderColor: category.color }"
         >
           <div class="category-icon" :style="{ backgroundColor: category.color }">
             {{ category.name.charAt(0) }}
@@ -237,18 +240,21 @@ const trainingStats = computed(() => {
 
     <!-- 搜索和筛选 -->
     <div class="search-filter-section">
-      <div class="search-box">
-        <input 
-          v-model="searchKeyword"
-          type="text" 
-          placeholder="搜索训练项目..."
-          class="search-input"
-        >
-        <button @click="resetSearch" class="reset-btn">重置</button>
+      <div class="search-card">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+          <input
+            v-model="searchKeyword"
+            type="text"
+            placeholder="搜索训练项目..."
+            class="search-input"
+          >
+          <button @click="resetSearch" class="reset-btn">重置</button>
+        </div>
       </div>
-      
+
       <div class="filter-tabs">
-        <button 
+        <button
           v-for="category in categories"
           :key="category"
           @click="selectedCategory = category; currentPage = 1"
@@ -261,33 +267,31 @@ const trainingStats = computed(() => {
 
     <!-- 训练项目列表 -->
     <div class="training-grid">
-      <div 
-        v-for="item in paginatedTrainingData" 
+      <div
+        v-for="item in paginatedTrainingData"
         :key="item.id"
         class="training-card"
         @click="viewDetail(item)"
       >
         <div class="card-header">
           <div class="card-title">{{ item.title }}</div>
-          <div 
+          <div
             class="card-category"
             :style="{ backgroundColor: getCategoryColor(item.category) }"
           >
             {{ item.category }}
           </div>
         </div>
-        
+
         <div class="card-content">
           <div class="training-row">
             <div class="training-label">🎯 训练目标</div>
             <div class="training-value">{{ item.target }}</div>
           </div>
-          
           <div class="training-row">
             <div class="training-label">🛠️ 训练道具</div>
             <div class="training-value">{{ item.equipment }}</div>
           </div>
-          
           <div class="training-row">
             <div class="training-label">📝 训练内容</div>
             <div class="training-value content-preview">
@@ -295,10 +299,11 @@ const trainingStats = computed(() => {
             </div>
           </div>
         </div>
-        
+
         <div class="card-footer">
-          <button class="view-detail-btn">查看详情</button>
+          <span class="view-detail-link">查看详情 <span class="arrow">→</span></span>
         </div>
+        <div class="card-bar" :style="{ backgroundColor: getCategoryColor(item.category) }"></div>
       </div>
     </div>
 
@@ -311,19 +316,17 @@ const trainingStats = computed(() => {
 
     <!-- 分页 -->
     <div v-if="totalPages > 1" class="pagination">
-      <button 
+      <button
         @click="changePage(currentPage - 1)"
         :disabled="currentPage === 1"
         class="pagination-btn"
       >
         上一页
       </button>
-      
       <div class="pagination-info">
         第 {{ currentPage }} 页 / 共 {{ totalPages }} 页
       </div>
-      
-      <button 
+      <button
         @click="changePage(currentPage + 1)"
         :disabled="currentPage === totalPages"
         class="pagination-btn"
@@ -337,29 +340,26 @@ const trainingStats = computed(() => {
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>{{ currentTrainingItem?.title }}</h3>
-          <button @click="closeDetailModal" class="modal-close">×</button>
+          <button @click="closeDetailModal" class="close-btn">×</button>
         </div>
-        
+
         <div class="modal-body">
           <div class="detail-section">
             <div class="detail-item">
               <div class="detail-label">🎯 训练目标</div>
               <div class="detail-value">{{ currentTrainingItem?.target }}</div>
             </div>
-            
             <div class="detail-item">
               <div class="detail-label">🛠️ 训练道具</div>
               <div class="detail-value">{{ currentTrainingItem?.equipment }}</div>
             </div>
-            
             <div class="detail-item">
               <div class="detail-label">📝 训练内容</div>
               <div class="detail-value">{{ currentTrainingItem?.content }}</div>
             </div>
-            
             <div class="detail-item">
               <div class="detail-label">🏷️ 训练类别</div>
-              <div 
+              <div
                 class="detail-category"
                 :style="{ backgroundColor: getCategoryColor(currentTrainingItem?.category || '') }"
               >
@@ -368,7 +368,7 @@ const trainingStats = computed(() => {
             </div>
           </div>
         </div>
-        
+
         <div class="modal-footer">
           <button @click="closeDetailModal" class="modal-btn">关闭</button>
         </div>
@@ -379,221 +379,308 @@ const trainingStats = computed(() => {
 
 <style scoped>
 .training-base {
-  padding: 20px;
+  padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-/* 页面标题 */
-.page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  padding: 30px;
-  margin-bottom: 30px;
-  color: white;
+/* ===== 深色渐变英雄头部 ===== */
+.hero-header {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #1e293b 0%, #334155 55%, #3b4a63 100%);
+  border-radius: 18px;
+  padding: 44px 40px 40px;
+  margin-bottom: 36px;
 }
 
-.header-content {
+.hero-deco {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.07;
+  pointer-events: none;
+}
+.hero-deco--1 { width: 260px; height: 260px; top: -80px; right: -60px; }
+.hero-deco--2 { width: 140px; height: 140px; bottom: -40px; left: 60px; }
+.hero-deco--3 { width: 90px; height: 90px; top: 30px; right: 200px; }
+
+.hero-badge {
+  display: inline-block;
+  padding: 5px 16px;
+  border-radius: 999px;
+  background: rgba(129, 140, 248, 0.2);
+  color: #a5b4fc;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 14px;
+}
+
+.hero-title {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.hero-subtitle {
+  margin: 0 0 28px;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+}
+
+.hero-chips {
   display: flex;
-  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  display: inline-flex;
   align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 999px;
 }
 
-.title-section h1 {
-  margin: 0 0 10px 0;
-  font-size: 2.5rem;
-  font-weight: 700;
+.chip-num {
+  font-weight: 750;
+  font-size: 1.05rem;
+  color: #1e293b;
 }
 
-.title-section p {
-  margin: 0;
-  font-size: 1.1rem;
-  opacity: 0.9;
+.chip-label {
+  font-size: 0.85rem;
+  color: #64748b;
 }
 
-.stats-section {
-  display: flex;
-  gap: 30px;
-}
-
-.stat-item {
-  text-align: center;
-}
-
-.stat-number {
-  font-size: 2.5rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  opacity: 0.8;
-  margin-top: 5px;
-}
-
-/* 类别统计 */
+/* ===== 类别统计 ===== */
 .category-stats {
-  margin-bottom: 30px;
+  margin-bottom: 36px;
+}
+
+.section-header {
+  margin-bottom: 20px;
+}
+
+.section-title {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.section-line {
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  background: #818cf8;
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+  gap: 14px;
 }
 
 .category-stat {
   display: flex;
   align-items: center;
-  padding: 15px;
-  background: white;
-  border-radius: 8px;
-  border: 2px solid #e0e0e0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  gap: 14px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #eef0f4;
+  transition: transform 0.22s, box-shadow 0.22s;
+}
+.category-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
 .category-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: bold;
-  font-size: 1.2rem;
-  margin-right: 15px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
 .category-info {
   flex: 1;
+  min-width: 0;
 }
 
 .category-name {
   font-weight: 600;
-  font-size: 1rem;
-  margin-bottom: 4px;
+  font-size: 0.95rem;
+  color: #1e293b;
+  margin-bottom: 2px;
 }
 
 .category-count {
-  font-size: 0.9rem;
-  color: #666;
+  font-size: 0.84rem;
+  color: #94a3b8;
 }
 
-/* 搜索和筛选 */
+/* ===== 搜索和筛选 ===== */
 .search-filter-section {
-  margin-bottom: 30px;
+  margin-bottom: 32px;
+}
+
+.search-card {
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
 }
 
 .search-box {
   display: flex;
+  align-items: center;
   gap: 10px;
-  margin-bottom: 20px;
+}
+
+.search-icon {
+  color: #94a3b8;
+  flex-shrink: 0;
 }
 
 .search-input {
   flex: 1;
-  padding: 12px 16px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border-color 0.3s;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: #1e293b;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-
+.search-input::placeholder { color: #94a3b8; }
 .search-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.12);
 }
 
 .reset-btn {
-  padding: 12px 24px;
-  background: #f5f5f5;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  padding: 9px 20px;
+  background: transparent;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 0.9rem;
   cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.3s;
+  transition: all 0.2s;
 }
-
 .reset-btn:hover {
-  background: #e0e0e0;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1e293b;
 }
 
 .filter-tabs {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .filter-tab {
-  padding: 10px 20px;
-  background: white;
-  border: 2px solid #e0e0e0;
-  border-radius: 25px;
+  padding: 8px 20px;
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 999px;
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.3s;
+  font-size: 0.88rem;
+  color: #64748b;
+  font-weight: 500;
+  transition: all 0.2s;
 }
-
 .filter-tab:hover {
-  border-color: #667eea;
+  border-color: #818cf8;
+  color: #818cf8;
 }
-
 .filter-tab.active {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
+  background: #818cf8;
+  color: #fff;
+  border-color: #818cf8;
 }
 
-/* 训练项目网格 */
+/* ===== 训练项目网格 ===== */
 .training-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 20px;
-  margin-bottom: 30px;
+  margin-bottom: 32px;
 }
 
 .training-card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #eef0f4;
+  padding: 22px 22px 18px;
   cursor: pointer;
-  transition: all 0.3s;
-  border: 2px solid transparent;
+  transition: transform 0.25s, box-shadow 0.25s;
+  overflow: hidden;
+}
+.training-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
 }
 
-.training-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  border-color: #667eea;
+.card-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.training-card:hover .card-bar {
+  opacity: 1;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 16px;
+  gap: 12px;
 }
 
 .card-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #333;
+  font-size: 1.08rem;
+  font-weight: 650;
+  color: #1e293b;
+  min-width: 0;
 }
 
 .card-category {
-  padding: 4px 12px;
-  border-radius: 15px;
-  color: white;
-  font-size: 0.8rem;
-  font-weight: 500;
+  padding: 4px 14px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .card-content {
-  margin-bottom: 15px;
+  margin-bottom: 14px;
 }
 
 .training-row {
@@ -604,116 +691,126 @@ const trainingStats = computed(() => {
 
 .training-label {
   font-weight: 500;
-  color: #666;
+  color: #94a3b8;
   min-width: 80px;
   margin-right: 10px;
-  font-size: 0.9rem;
+  font-size: 0.86rem;
 }
 
 .training-value {
   flex: 1;
-  color: #333;
+  color: #334155;
   font-size: 0.9rem;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .content-preview {
-  color: #666;
+  color: #64748b;
 }
 
 .card-footer {
   text-align: right;
 }
 
-.view-detail-btn {
-  padding: 8px 16px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 6px;
+.view-detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #818cf8;
+  font-size: 0.88rem;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: background 0.3s;
+  transition: color 0.2s;
+}
+.view-detail-link:hover {
+  color: #6366f1;
+}
+.view-detail-link .arrow {
+  display: inline-block;
+  transition: transform 0.25s;
+  opacity: 0;
+  transform: translateX(-6px);
+}
+.training-card:hover .view-detail-link .arrow {
+  opacity: 1;
+  transform: translateX(0);
 }
 
-.view-detail-btn:hover {
-  background: #5a6fd8;
-}
-
-/* 空状态 */
+/* ===== 空状态 ===== */
 .empty-state {
   text-align: center;
-  padding: 60px 20px;
-  color: #666;
+  padding: 72px 20px;
 }
 
 .empty-icon {
-  font-size: 4rem;
-  margin-bottom: 20px;
+  font-size: 3.5rem;
+  margin-bottom: 16px;
 }
 
 .empty-text {
-  font-size: 1.2rem;
-  margin-bottom: 20px;
+  font-size: 1.1rem;
+  color: #64748b;
+  margin-bottom: 24px;
 }
 
 .empty-reset-btn {
-  padding: 12px 24px;
-  background: #667eea;
-  color: white;
+  padding: 10px 28px;
+  background: #818cf8;
+  color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.3s;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background 0.2s;
 }
-
 .empty-reset-btn:hover {
-  background: #5a6fd8;
+  background: #6366f1;
 }
 
-/* 分页 */
+/* ===== 分页 ===== */
 .pagination {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 20px;
-  margin-top: 30px;
+  gap: 16px;
+  margin-top: 32px;
 }
 
 .pagination-btn {
-  padding: 10px 20px;
-  background: white;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  padding: 9px 22px;
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 999px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.3s;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #334155;
+  transition: all 0.2s;
 }
-
 .pagination-btn:hover:not(:disabled) {
-  border-color: #667eea;
-  background: #f8f9ff;
+  border-color: #818cf8;
+  color: #818cf8;
+  background: rgba(129, 140, 248, 0.06);
 }
-
 .pagination-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
 .pagination-info {
-  font-size: 1rem;
-  color: #666;
+  font-size: 0.92rem;
+  color: #94a3b8;
 }
 
-/* 详情弹窗 */
+/* ===== 详情弹窗 ===== */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -721,130 +818,132 @@ const trainingStats = computed(() => {
 }
 
 .modal-content {
-  background: white;
-  border-radius: 12px;
-  width: 90%;
+  background: #fff;
+  border-radius: 16px;
+  width: 92%;
   max-width: 600px;
-  max-height: 80vh;
+  max-height: 82vh;
   overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.14);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 22px 24px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.5rem;
-  color: #333;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1e293b;
 }
 
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  cursor: pointer;
-  color: #666;
-  padding: 0;
-  width: 30px;
-  height: 30px;
+.close-btn {
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.3rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
 }
-
-.modal-close:hover {
-  color: #333;
+.close-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
 }
 
 .modal-body {
-  padding: 20px;
-}
-
-.detail-section {
-  space-y: 20px;
+  padding: 24px;
 }
 
 .detail-item {
-  margin-bottom: 20px;
+  margin-bottom: 22px;
+}
+.detail-item:last-child {
+  margin-bottom: 0;
 }
 
 .detail-label {
   font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-  font-size: 1rem;
+  color: #1e293b;
+  margin-bottom: 6px;
+  font-size: 0.95rem;
 }
 
 .detail-value {
-  color: #666;
-  line-height: 1.6;
-  font-size: 1rem;
+  color: #64748b;
+  line-height: 1.65;
+  font-size: 0.95rem;
 }
 
 .detail-category {
   display: inline-block;
-  padding: 6px 16px;
-  border-radius: 20px;
-  color: white;
-  font-size: 0.9rem;
-  font-weight: 500;
+  padding: 5px 16px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .modal-footer {
-  padding: 20px;
-  border-top: 1px solid #e0e0e0;
+  padding: 18px 24px;
+  border-top: 1px solid #f1f5f9;
   text-align: right;
 }
 
 .modal-btn {
-  padding: 10px 20px;
-  background: #667eea;
-  color: white;
+  padding: 10px 28px;
+  background: #818cf8;
+  color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.3s;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background 0.2s;
 }
-
 .modal-btn:hover {
-  background: #5a6fd8;
+  background: #6366f1;
 }
 
-/* 响应式设计 */
+/* ===== 响应式 ===== */
 @media (max-width: 768px) {
   .training-base {
-    padding: 15px;
+    padding: 16px;
   }
-  
-  .header-content {
+  .hero-header {
+    padding: 32px 22px 28px;
+  }
+  .hero-title {
+    font-size: 1.55rem;
+  }
+  .hero-chips {
     flex-direction: column;
-    gap: 20px;
-    text-align: center;
+    gap: 10px;
   }
-  
-  .stats-section {
-    justify-content: center;
+  .stat-chip {
+    align-self: flex-start;
   }
-  
   .training-grid {
     grid-template-columns: 1fr;
   }
-  
   .filter-tabs {
     justify-content: center;
   }
-  
   .pagination {
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
   }
-  
   .modal-content {
     width: 95%;
     margin: 20px;

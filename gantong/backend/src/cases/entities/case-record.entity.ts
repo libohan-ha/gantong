@@ -36,6 +36,9 @@ export class CaseRecord {
   @Column('text', { nullable: true })
   description?: string | null;
 
+  @Column({ type: 'varchar', length: 20, default: 'online' })
+  caseType: 'online' | 'offline';
+
   @Column({ type: 'enum', enum: CaseStatus, default: CaseStatus.UPLOADED })
   status: CaseStatus;
 

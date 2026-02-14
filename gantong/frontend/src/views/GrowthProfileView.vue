@@ -1,5 +1,5 @@
-﻿<script setup lang="ts">
-import { onMounted, ref } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   createChild,
@@ -125,6 +125,27 @@ const improvementsText = ref('')
 const activeTab = ref('overview')
 const editMode = ref(false)
 const saving = ref(false)
+
+const profileStats = computed(() => {
+  const achieved = growthMilestones.value.filter((m) => m.achieved).length
+  return {
+    childCount: children.value.length,
+    milestonesAchieved: achieved,
+    milestonesTotal: growthMilestones.value.length,
+    healthRecordCount: healthRecords.value.length,
+  }
+})
+
+const bmiValue = computed(() => {
+  const h = currentStatus.value.physicalDevelopment.height
+  const w = currentStatus.value.physicalDevelopment.weight
+  if (!h || !w) return null
+  const m = h / 100
+  if (!m) return null
+  const v = w / (m * m)
+  if (!Number.isFinite(v)) return null
+  return Math.round(v * 10) / 10
+})
 
 const calculateAge = (birthDate: string) => {
   if (!birthDate) return ''
@@ -282,6 +303,31 @@ onMounted(async () => {
 
 <template>
   <div class="growth-profile-container">
+    <!-- Hero Header -->
+    <div class="hero-header">
+      <div class="hero-deco hero-deco-1"></div>
+      <div class="hero-deco hero-deco-2"></div>
+      <div class="hero-deco hero-deco-3"></div>
+      <span class="hero-badge">成长档案</span>
+      <h1 class="hero-title">{{ child?.name ? child.name + ' 的成长档案' : '成长档案' }}</h1>
+      <p class="hero-subtitle">记录每一个成长瞬间</p>
+
+      <div class="hero-chips">
+        <div class="stat-chip">
+          <span class="chip-num">{{ profileStats.childCount }}</span>
+          <span class="chip-label">孩子</span>
+        </div>
+        <div class="stat-chip">
+          <span class="chip-num">{{ profileStats.milestonesAchieved }}<small>/{{ profileStats.milestonesTotal }}</small></span>
+          <span class="chip-label">里程碑</span>
+        </div>
+        <div class="stat-chip">
+          <span class="chip-num">{{ profileStats.healthRecordCount }}</span>
+          <span class="chip-label">健康记录</span>
+        </div>
+      </div>
+    </div>
+
     <div class="profile-header">
       <div class="child-info">
         <div class="child-avatar">
@@ -291,6 +337,7 @@ onMounted(async () => {
           <div class="child-select">
             <label>选择孩子：</label>
             <select v-model="selectedChildId" @change="() => loadSelectedChild()">
+              <option v-if="!children.length" :value="null">暂无孩子</option>
               <option v-for="c in children" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
             <button class="add-btn" type="button" @click="creatingChild = !creatingChild">
@@ -344,21 +391,21 @@ onMounted(async () => {
               <template v-if="editMode">
                 <input class="input" type="number" v-model.number="currentStatus.physicalDevelopment.height" placeholder="例如 110" />
               </template>
-              <span v-else class="value">{{ currentStatus.physicalDevelopment.height }}</span>
+              <span v-else class="value">{{ currentStatus.physicalDevelopment.height ?? '-' }}</span>
             </div>
             <div class="info-item">
               <span class="label">体重(kg)</span>
               <template v-if="editMode">
                 <input class="input" type="number" v-model.number="currentStatus.physicalDevelopment.weight" placeholder="例如 18" />
               </template>
-              <span v-else class="value">{{ currentStatus.physicalDevelopment.weight }}</span>
+              <span v-else class="value">{{ currentStatus.physicalDevelopment.weight ?? '-' }}</span>
             </div>
             <div class="info-item">
               <span class="label">最后更新</span>
               <template v-if="editMode">
                 <input class="input" type="date" v-model="currentStatus.physicalDevelopment.lastUpdated" />
               </template>
-              <span v-else class="value">{{ currentStatus.physicalDevelopment.lastUpdated }}</span>
+              <span v-else class="value">{{ currentStatus.physicalDevelopment.lastUpdated ?? '-' }}</span>
             </div>
           </div>
         </div>
@@ -374,7 +421,7 @@ onMounted(async () => {
                 </span>
               </div>
               <div class="skill-bar">
-                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.selfCare + '%' }"></div>
+                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.selfCare + '%', background: getSkillLevel(currentStatus.dailySkills.selfCare).color }"></div>
               </div>
             </div>
 
@@ -386,34 +433,19 @@ onMounted(async () => {
                 </span>
               </div>
               <div class="skill-bar">
-                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.communication + '%' }"></div>
+                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.communication + '%', background: getSkillLevel(currentStatus.dailySkills.communication).color }"></div>
               </div>
             </div>
 
             <div class="skill-item">
               <div class="skill-info">
-                <div v-if="editMode" class="edit-form">
-                  <div class="info-item">
-                    <span class="label">优势</span>
-                    <input class="input" type="text" v-model="strengthsText" placeholder="使用逗号分隔" />
-                  </div>
-                  <div class="info-item">
-                    <span class="label">挑战</span>
-                    <input class="input" type="text" v-model="challengesText" placeholder="使用逗号分隔" />
-                  </div>
-                  <div class="info-item">
-                    <span class="label">改善</span>
-                    <input class="input" type="text" v-model="improvementsText" placeholder="使用逗号分隔" />
-                  </div>
-                </div>
-
                 <span class="skill-name">社交能力</span>
                 <span class="skill-score" :style="{ color: getSkillLevel(currentStatus.dailySkills.social).color }">
                   {{ getSkillLevel(currentStatus.dailySkills.social).text }}
                 </span>
               </div>
               <div class="skill-bar">
-                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.social + '%' }"></div>
+                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.social + '%', background: getSkillLevel(currentStatus.dailySkills.social).color }"></div>
               </div>
             </div>
 
@@ -425,23 +457,74 @@ onMounted(async () => {
                 </span>
               </div>
               <div class="skill-bar">
-                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.motor + '%' }"></div>
+                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.motor + '%', background: getSkillLevel(currentStatus.dailySkills.motor).color }"></div>
               </div>
             </div>
           </div>
         </div>
 
         <div class="info-card">
-          <h3>近期改善</h3>
-          <div class="improvements-list">
-            <div
-              v-for="improvement in currentStatus.behaviorObservation.improvements"
-              :key="improvement"
-              class="improvement-item"
-            >
-              ✓ {{ improvement }}
+          <h3>行为观察</h3>
+
+          <div v-if="editMode" class="edit-form">
+            <div class="edit-row">
+              <label>优势</label>
+              <input class="input" type="text" v-model="strengthsText" placeholder="用逗号分隔，例如：专注、配合度高" />
             </div>
+            <div class="edit-row">
+              <label>挑战</label>
+              <input class="input" type="text" v-model="challengesText" placeholder="用逗号分隔，例如：注意力易分散" />
+            </div>
+            <div class="edit-row">
+              <label>改善</label>
+              <input class="input" type="text" v-model="improvementsText" placeholder="用逗号分隔，例如：情绪更稳定" />
+            </div>
+            <div class="edit-tip">提示：支持中文/英文逗号、顿号、空格分隔</div>
           </div>
+
+          <template v-else>
+            <div class="behavior-section">
+              <h4>优势表现</h4>
+              <div class="behavior-tags strengths">
+                <span
+                  v-for="strength in currentStatus.behaviorObservation.strengths"
+                  :key="strength"
+                  class="behavior-tag positive"
+                >
+                  {{ strength }}
+                </span>
+                <span v-if="!currentStatus.behaviorObservation.strengths.length" class="empty-pill">暂无</span>
+              </div>
+            </div>
+
+            <div class="behavior-section">
+              <h4>挑战领域</h4>
+              <div class="behavior-tags challenges">
+                <span
+                  v-for="challenge in currentStatus.behaviorObservation.challenges"
+                  :key="challenge"
+                  class="behavior-tag challenge"
+                >
+                  {{ challenge }}
+                </span>
+                <span v-if="!currentStatus.behaviorObservation.challenges.length" class="empty-pill">暂无</span>
+              </div>
+            </div>
+
+            <div class="behavior-section">
+              <h4>近期改善</h4>
+              <div class="improvements-list compact">
+                <div
+                  v-for="improvement in currentStatus.behaviorObservation.improvements"
+                  :key="improvement"
+                  class="improvement-item compact"
+                >
+                  ✓ {{ improvement }}
+                </div>
+                <div v-if="!currentStatus.behaviorObservation.improvements.length" class="empty-text">暂无记录</div>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -530,24 +613,24 @@ onMounted(async () => {
           <div class="physical-stats">
             <div class="stat-item">
               <div class="stat-label">身高</div>
-              <div class="stat-value">{{ currentStatus.physicalDevelopment.height }}</div>
+              <div class="stat-value">{{ currentStatus.physicalDevelopment.height ?? '-' }}</div>
               <div class="stat-trend">正常范围</div>
             </div>
 
             <div class="stat-item">
               <div class="stat-label">体重</div>
-              <div class="stat-value">{{ currentStatus.physicalDevelopment.weight }}</div>
+              <div class="stat-value">{{ currentStatus.physicalDevelopment.weight ?? '-' }}</div>
               <div class="stat-trend">正常范围</div>
             </div>
 
             <div class="stat-item">
               <div class="stat-label">BMI</div>
-              <div class="stat-value">14.9</div>
+              <div class="stat-value">{{ bmiValue ?? '-' }}</div>
               <div class="stat-trend">健康</div>
             </div>
           </div>
 
-          <div class="update-info">最后更新：{{ currentStatus.physicalDevelopment.lastUpdated }}</div>
+          <div class="update-info">最后更新：{{ currentStatus.physicalDevelopment.lastUpdated ?? '-' }}</div>
         </div>
 
         <div class="status-card full-width">
@@ -559,7 +642,7 @@ onMounted(async () => {
                 <span class="skill-percentage">{{ currentStatus.dailySkills.selfCare }}%</span>
               </div>
               <div class="skill-bar">
-                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.selfCare + '%' }"></div>
+                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.selfCare + '%', background: getSkillLevel(currentStatus.dailySkills.selfCare).color }"></div>
               </div>
               <div class="skill-description">包括穿衣、洗漱、用餐等基本生活技能</div>
             </div>
@@ -570,7 +653,7 @@ onMounted(async () => {
                 <span class="skill-percentage">{{ currentStatus.dailySkills.communication }}%</span>
               </div>
               <div class="skill-bar">
-                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.communication + '%' }"></div>
+                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.communication + '%', background: getSkillLevel(currentStatus.dailySkills.communication).color }"></div>
               </div>
               <div class="skill-description">语言表达、理解能力和非语言沟通技巧</div>
             </div>
@@ -581,7 +664,7 @@ onMounted(async () => {
                 <span class="skill-percentage">{{ currentStatus.dailySkills.social }}%</span>
               </div>
               <div class="skill-bar">
-                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.social + '%' }"></div>
+                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.social + '%', background: getSkillLevel(currentStatus.dailySkills.social).color }"></div>
               </div>
               <div class="skill-description">与同龄人互动、合作游戏和情感表达</div>
             </div>
@@ -592,7 +675,7 @@ onMounted(async () => {
                 <span class="skill-percentage">{{ currentStatus.dailySkills.motor }}%</span>
               </div>
               <div class="skill-bar">
-                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.motor + '%' }"></div>
+                <div class="skill-fill" :style="{ width: currentStatus.dailySkills.motor + '%', background: getSkillLevel(currentStatus.dailySkills.motor).color }"></div>
               </div>
               <div class="skill-description">大运动与精细运动的协调性和灵活性</div>
             </div>
@@ -609,22 +692,25 @@ onMounted(async () => {
         </div>
 
         <div class="records-list">
-          <div
-            v-for="record in healthRecords"
-            :key="record.date + record.type"
-            class="record-item"
-          >
-            <div class="record-date">{{ record.date }}</div>
-            <div class="record-content">
-              <div class="record-type">{{ record.type }}</div>
-              <div class="record-description">{{ record.description }}</div>
-              <div v-if="record.result" class="record-result">{{ record.result }}</div>
+          <div v-if="!healthRecords.length" class="empty-text">暂无健康记录</div>
+          <template v-else>
+            <div
+              v-for="record in healthRecords"
+              :key="record.id"
+              class="record-item"
+            >
+              <div class="record-date">{{ record.date }}</div>
+              <div class="record-content">
+                <div class="record-type">{{ record.type }}</div>
+                <div class="record-description">{{ record.description }}</div>
+                <div v-if="record.result" class="record-result">{{ record.result }}</div>
+              </div>
+              <div v-if="editMode" style="display:flex; gap:8px; align-items:center;">
+                <button class="save-btn" @click="onUpdateRecord(record)">保存</button>
+                <button class="cancel-btn" @click="onDeleteRecord(record)">删除</button>
+              </div>
             </div>
-            <div v-if="editMode" style="display:flex; gap:8px; align-items:center;">
-              <button class="save-btn" @click="onUpdateRecord(record)">保存</button>
-              <button class="cancel-btn" @click="onDeleteRecord(record)">删除</button>
-            </div>
-          </div>
+          </template>
         </div>
       </div>
     </div>
@@ -632,52 +718,111 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* ============================================================
+   Growth Profile — Unified Amber / Slate Design System
+   ============================================================ */
+
 .growth-profile-container {
-  --surface: #ffffff;
-  --surface-soft: #f8fafc;
-  --surface-alt: #eef7f4;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --brand: #0f9d75;
-  --brand-strong: #0a7f61;
-  --brand-soft: #dff5ed;
-  --line: #dbe5f0;
-  --danger: #e53935;
-  --warning: #f59e0b;
-  --success: #16a34a;
-
   position: relative;
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 2rem;
-  color: var(--text-primary);
-  font-family: 'Noto Sans SC', 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  padding: 2rem 1.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  color: #1e293b;
 }
 
-.growth-profile-container::before {
-  content: '';
+/* ── Hero Header ── */
+.hero-header {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #1e293b 0%, #334155 55%, #3b4a63 100%);
+  border-radius: 18px;
+  padding: 2.5rem 2.75rem 2.25rem;
+}
+
+.hero-deco {
   position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(900px 420px at 10% -15%, #d8f2ea 0%, transparent 55%),
-    radial-gradient(760px 340px at 95% -10%, #e6f0ff 0%, transparent 60%),
-    linear-gradient(180deg, #f6fbff 0%, #f3f9f7 40%, #f7fbff 100%);
-  border-radius: 20px;
+  border-radius: 50%;
+  background: #f59e42;
+  opacity: 0.07;
 }
 
+.hero-deco-1 { width: 260px; height: 260px; top: -80px; right: -40px; }
+.hero-deco-2 { width: 140px; height: 140px; bottom: -50px; left: 60px; }
+.hero-deco-3 { width: 90px; height: 90px; top: 30px; right: 220px; }
+
+.hero-badge {
+  display: inline-block;
+  background: rgba(245, 158, 66, 0.2);
+  color: #f59e42;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  margin-bottom: 0.7rem;
+  letter-spacing: 0.5px;
+}
+
+.hero-title {
+  color: #fff;
+  font-size: 1.55rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+}
+
+.hero-subtitle {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 1.25rem;
+}
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 13px;
+  padding: 8px 18px;
+}
+
+.chip-num {
+  font-size: 20px;
+  font-weight: 750;
+  color: #1e293b;
+}
+
+.chip-num small {
+  font-size: 14px;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-left: 2px;
+}
+
+.chip-label {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* ── Profile Header Card ── */
 .profile-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1.5rem;
-  margin-bottom: 2rem;
-  padding: 1.8rem;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fcff 100%);
-  border: 1px solid #dde8f3;
-  border-radius: 18px;
-  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.06);
+  padding: 1.5rem 1.75rem;
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 16px;
 }
 
 .child-info {
@@ -687,51 +832,47 @@ onMounted(async () => {
   min-width: 0;
 }
 
-.child-avatar {
-  flex-shrink: 0;
-}
+.child-avatar { flex-shrink: 0; }
 
 .avatar-placeholder {
-  width: 104px;
-  height: 104px;
-  border-radius: 28px;
-  background:
-    linear-gradient(145deg, #6f79ff 0%, #6d4acb 45%, #108d78 100%);
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f59e42 0%, #e8890a 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
-  font-weight: 800;
+  font-size: 1.8rem;
+  font-weight: 700;
   color: #fff;
-  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.24);
 }
 
-.child-details {
-  min-width: 0;
-}
+.child-details { min-width: 0; }
 
 .child-details h1 {
-  margin: 0.65rem 0 0.45rem;
-  color: var(--text-primary);
-  font-size: clamp(1.75rem, 2.2vw, 2.2rem);
-  letter-spacing: 0.4px;
+  margin: 0.5rem 0 0.4rem;
+  color: #1e293b;
+  font-size: 1.35rem;
+  font-weight: 700;
 }
 
 .child-meta {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 .meta-item {
-  color: #2f415a;
-  font-size: 0.9rem;
-  background: var(--surface-alt);
-  border: 1px solid #d6eee6;
-  border-radius: 999px;
-  padding: 0.3rem 0.65rem;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: #f8fafc;
+  border: 1px solid #f0f0f5;
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
 }
 
+/* ── Child Select / Create ── */
 .child-select {
   display: flex;
   gap: 0.6rem;
@@ -740,20 +881,22 @@ onMounted(async () => {
 }
 
 .child-select label {
-  color: var(--text-secondary);
+  color: #64748b;
   font-weight: 600;
+  font-size: 13.5px;
 }
 
 .child-select select,
 .create-child-form .input,
 .info-item .input {
-  height: 40px;
-  border: 1px solid #cedceb;
+  height: 38px;
+  border: 1.5px solid #e2e8f0;
   border-radius: 10px;
   padding: 0 0.75rem;
-  background: #fff;
-  color: var(--text-primary);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .child-select select:focus,
@@ -761,8 +904,9 @@ onMounted(async () => {
 .info-item .input:focus,
 .input:focus {
   outline: none;
-  border-color: #67c8aa;
-  box-shadow: 0 0 0 3px rgba(15, 157, 117, 0.14);
+  border-color: #f59e42;
+  box-shadow: 0 0 0 3px rgba(245, 158, 66, 0.1);
+  background: #fff;
 }
 
 .create-child-form {
@@ -774,6 +918,7 @@ onMounted(async () => {
   max-width: 640px;
 }
 
+/* ── Buttons ── */
 .header-actions {
   display: flex;
   gap: 0.55rem;
@@ -784,109 +929,116 @@ onMounted(async () => {
 .save-btn,
 .cancel-btn,
 .add-btn {
-  border: 1px solid transparent;
-  border-radius: 12px;
+  border: none;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 0.95rem;
-  font-weight: 700;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 0.55rem 1.1rem;
+  transition: transform 0.18s, box-shadow 0.18s;
 }
 
 .edit-btn,
 .save-btn,
 .add-btn {
   color: #fff;
-  background: linear-gradient(135deg, var(--brand) 0%, #0ba57f 100%);
-  padding: 0.72rem 1.2rem;
-  box-shadow: 0 8px 20px rgba(11, 165, 127, 0.25);
+  background: linear-gradient(135deg, #f59e42 0%, #e8890a 100%);
+  box-shadow: 0 4px 14px rgba(245, 158, 66, 0.25);
 }
 
 .edit-btn:hover,
 .save-btn:hover,
 .add-btn:hover {
-  transform: translateY(-1px);
-  background: linear-gradient(135deg, var(--brand-strong) 0%, var(--brand) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 158, 66, 0.35);
 }
 
 .cancel-btn {
-  padding: 0.72rem 1.2rem;
-  background: #fff;
-  color: #334155;
-  border-color: #d0dbe8;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1.5px solid #e2e8f0;
 }
 
 .cancel-btn:hover {
-  background: #f8fafc;
-  transform: translateY(-1px);
+  background: #e2e8f0;
 }
 
+/* ── Tab Navigation ── */
 .tab-navigation {
   display: flex;
-  gap: 0.6rem;
-  margin-bottom: 1.6rem;
+  gap: 6px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
   overflow-x: auto;
-  padding-bottom: 0.15rem;
 }
 
 .tab-btn {
-  padding: 0.65rem 1.15rem;
-  border: 1px solid #dbe7f3;
-  background: #fff;
-  color: #506279;
-  border-radius: 999px;
+  padding: 7px 18px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
-  font-weight: 650;
-  letter-spacing: 0.2px;
-  transition: all 0.25s ease;
+  font-weight: 500;
+  font-size: 13.5px;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .tab-btn.active {
-  border-color: transparent;
-  color: #fff;
-  background: linear-gradient(135deg, var(--brand) 0%, #10907d 100%);
-  box-shadow: 0 8px 16px rgba(16, 144, 125, 0.24);
+  background: #fff;
+  color: #1e293b;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .tab-btn:hover:not(.active) {
-  border-color: #b8cbdf;
-  background: #f8fbff;
+  color: #1e293b;
 }
 
+/* ── Tab Content ── */
 .tab-content {
-  min-height: 420px;
-  animation: fadeInUp 0.28s ease;
+  min-height: 400px;
 }
 
+/* ── Cards ── */
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
+  gap: 1.15rem;
 }
 
 .info-card,
 .status-card,
 .development-content,
 .health-records {
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: #fff;
+  border: 1px solid #eef0f4;
   border-radius: 16px;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+  transition: transform 0.22s, box-shadow 0.22s;
 }
 
-.info-card {
-  padding: 1.35rem;
+.info-card:hover,
+.status-card:hover,
+.development-content:hover,
+.health-records:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
 }
+
+.info-card { padding: 1.35rem; }
 
 .info-card h3,
 .status-card h3,
 .section-header h3 {
   margin: 0 0 1rem;
-  color: #13263e;
-  font-size: 1.2rem;
-  letter-spacing: 0.2px;
+  color: #1e293b;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
+/* ── Info List ── */
 .info-list {
   display: flex;
   flex-direction: column;
@@ -901,32 +1053,70 @@ onMounted(async () => {
 }
 
 .info-item .label {
-  color: var(--text-secondary);
-  font-weight: 600;
+  color: #94a3b8;
+  font-size: 12.5px;
+  font-weight: 500;
 }
 
 .info-item .value {
-  font-weight: 700;
-  color: #15314f;
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
 }
 
+/* ── Edit Form ── */
 .edit-form {
   width: 100%;
-  background: #f7fbff;
-  border: 1px dashed #c9dbee;
-  border-radius: 10px;
-  padding: 0.65rem;
-  margin-bottom: 0.45rem;
+  background: rgba(245, 158, 66, 0.04);
+  border: 1px dashed rgba(245, 158, 66, 0.25);
+  border-radius: 12px;
+  padding: 0.85rem;
+  margin: 0;
 }
 
-.edit-form .info-item {
-  margin-top: 0;
+.edit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+.edit-row:last-child { margin-bottom: 0; }
+
+.edit-row label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.edit-tip {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.empty-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #94a3b8;
+  background: #f8fafc;
+  border: 1px dashed #e2e8f0;
+}
+
+.empty-text {
+  color: #94a3b8;
+  font-size: 0.85rem;
 }
 
 .input {
   padding: 8px 10px;
-  border: 1px solid #cfddeb;
-  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
 }
 
 .info-item .input {
@@ -934,22 +1124,23 @@ onMounted(async () => {
   min-width: 120px;
 }
 
+/* ── Skills ── */
 .skills-overview,
 .skills-detailed {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 0.75rem;
 }
 
 .skill-item,
 .skill-detailed-item {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.85rem;
-  border: 1px solid #e3edf7;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border: 1px solid #eef0f4;
+  border-radius: 10px;
+  background: #fafbfc;
 }
 
 .skill-info,
@@ -957,53 +1148,54 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.6rem;
 }
 
 .skill-name {
-  color: #19314f;
-  font-weight: 700;
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 13.5px;
 }
 
 .skill-score,
 .skill-percentage {
-  font-size: 0.92rem;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .skill-bar {
-  height: 10px;
-  background: #dfebf4;
-  border-radius: 999px;
+  height: 5px;
+  background: #f1f5f9;
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .skill-fill {
   height: 100%;
-  background: linear-gradient(90deg, #00b489 0%, #0b7dca 100%);
+  border-radius: 3px;
   transition: width 0.35s ease;
 }
 
 .skill-description {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  margin-top: 0.2rem;
+  color: #94a3b8;
+  font-size: 0.82rem;
   line-height: 1.55;
 }
 
+/* ── Improvements ── */
 .improvements-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .improvement-item {
-  color: #15803d;
-  font-weight: 700;
-  background: #edfdf4;
-  border: 1px solid #c6f2d8;
-  border-radius: 10px;
-  padding: 0.45rem 0.6rem;
+  color: #e8890a;
+  font-weight: 600;
+  background: rgba(245, 158, 66, 0.06);
+  border: 1px solid rgba(245, 158, 66, 0.15);
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.85rem;
 }
 
 .no-data {
@@ -1012,6 +1204,7 @@ onMounted(async () => {
   margin: 2rem 0;
 }
 
+/* ── Development / Health sections ── */
 .development-content,
 .health-records {
   padding: 1.5rem;
@@ -1023,11 +1216,12 @@ onMounted(async () => {
   align-items: center;
   gap: 0.8rem;
   margin-bottom: 1.2rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid #e8eaef;
 }
 
-.milestones-timeline {
-  position: relative;
-}
+/* ── Milestones Timeline ── */
+.milestones-timeline { position: relative; }
 
 .milestone-item {
   display: flex;
@@ -1036,9 +1230,7 @@ onMounted(async () => {
   position: relative;
 }
 
-.milestone-item:last-child {
-  margin-bottom: 0.3rem;
-}
+.milestone-item:last-child { margin-bottom: 0.3rem; }
 
 .milestone-marker {
   display: flex;
@@ -1051,107 +1243,107 @@ onMounted(async () => {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #d7e3f0;
-  border: 2px solid #f7fbff;
-  transition: all 0.3s ease;
+  background: #e2e8f0;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px #e2e8f0;
 }
 
 .marker-dot.completed {
-  background: var(--success);
-  border-color: #b9efcf;
+  background: #f59e42;
+  box-shadow: 0 0 0 1px #f59e42, 0 0 0 4px rgba(245, 158, 66, 0.15);
 }
 
 .marker-line {
   width: 2px;
   height: 38px;
-  background: #d8e4ef;
+  background: #e8eaef;
   margin-top: 6px;
 }
 
 .milestone-content {
   flex: 1;
-  padding: 0.2rem 0.75rem 0.75rem;
-  border-radius: 10px;
-  border: 1px solid #e3edf8;
-  background: #fafcff;
+  padding: 0.6rem 1rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid #eef0f4;
+  background: #fff;
 }
 
 .milestone-age {
-  color: #57718e;
-  font-size: 0.84rem;
-  margin-bottom: 0.18rem;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  margin-bottom: 0.2rem;
 }
 
 .milestone-title {
-  color: #18314f;
-  font-weight: 700;
-  margin-bottom: 0.45rem;
+  color: #1e293b;
+  font-weight: 650;
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
 }
 
 .milestone-date {
-  color: #138a4c;
-  font-size: 0.86rem;
+  color: #f59e42;
+  font-size: 0.82rem;
+  font-weight: 600;
   margin-bottom: 0.2rem;
 }
 
 .milestone-notes {
-  color: #5d738d;
-  font-size: 0.86rem;
-  line-height: 1.45;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
+/* ── Current Status Grid ── */
 .current-status-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1rem;
+  gap: 1.15rem;
 }
 
-.status-card {
-  padding: 1.35rem;
-}
+.status-card { padding: 1.35rem; }
+.status-card.full-width { grid-column: 1 / -1; }
 
-.status-card.full-width {
-  grid-column: 1 / -1;
-}
-
-.behavior-section {
-  margin-bottom: 1.1rem;
-}
+/* ── Behavior Tags ── */
+.behavior-section { margin-bottom: 1rem; }
+.behavior-section:last-child { margin-bottom: 0; }
 
 .behavior-section h4 {
-  margin: 0 0 0.55rem;
-  color: #20384f;
-  font-size: 1rem;
+  margin: 0 0 0.5rem;
+  color: #1e293b;
+  font-size: 0.88rem;
+  font-weight: 650;
 }
 
 .behavior-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: 0.35rem;
 }
 
 .behavior-tag {
-  padding: 0.25rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.84rem;
-  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 
 .behavior-tag.positive {
-  background: #eafaf0;
-  color: #128a49;
+  background: rgba(245, 158, 66, 0.08);
+  color: #e8890a;
 }
 
 .behavior-tag.challenge {
-  background: #fff1f2;
-  color: #dc2626;
+  background: rgba(239, 68, 68, 0.06);
+  color: #ef4444;
 }
 
 .behavior-tag.improvement {
-  background: #edf6ff;
-  color: #1d4ed8;
+  background: rgba(56, 189, 248, 0.08);
+  color: #0284c7;
 }
 
+/* ── Physical Stats ── */
 .physical-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1161,117 +1353,106 @@ onMounted(async () => {
 
 .stat-item {
   text-align: center;
-  padding: 0.9rem 0.7rem;
-  background: linear-gradient(180deg, #f8fbff 0%, #f2f8f8 100%);
-  border-radius: 12px;
-  border: 1px solid #dbe9f3;
+  padding: 0.85rem 0.6rem;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #eef0f4;
 }
 
 .stat-label {
-  color: #55708a;
-  font-size: 0.82rem;
+  color: #94a3b8;
+  font-size: 0.78rem;
   margin-bottom: 0.2rem;
 }
 
 .stat-value {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: #1f3a56;
-  margin-bottom: 0.2rem;
+  font-size: 1.25rem;
+  font-weight: 750;
+  color: #1e293b;
+  margin-bottom: 0.15rem;
 }
 
 .stat-trend {
-  color: #178a4b;
-  font-size: 0.78rem;
+  color: #f59e42;
+  font-size: 0.72rem;
   font-weight: 600;
 }
 
 .update-info {
-  color: #4f6b87;
-  font-size: 0.88rem;
+  color: #94a3b8;
+  font-size: 0.82rem;
   text-align: center;
   margin-top: 0.8rem;
   padding-top: 0.8rem;
-  border-top: 1px solid #dce8f2;
+  border-top: 1px solid #e8eaef;
 }
 
-.health-records {
-  padding: 1.5rem;
-}
-
+/* ── Health Records ── */
 .records-list {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.75rem;
 }
 
 .record-item {
   display: flex;
   gap: 0.9rem;
   align-items: flex-start;
-  padding: 0.9rem;
-  background: linear-gradient(180deg, #fbfeff 0%, #f7fbff 100%);
+  padding: 1rem 1.1rem;
+  background: #fff;
   border-radius: 12px;
-  border: 1px solid #dce8f4;
-  border-left: 4px solid var(--brand);
+  border: 1px solid #eef0f4;
+  border-left: 3px solid #f59e42;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.record-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
 }
 
 .record-date {
   flex-shrink: 0;
-  width: 108px;
-  color: #5b738b;
-  font-size: 0.86rem;
-  font-weight: 600;
+  width: 100px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 500;
 }
 
-.record-content {
-  flex: 1;
-}
+.record-content { flex: 1; }
 
 .record-type {
-  color: var(--brand-strong);
-  font-weight: 700;
-  margin-bottom: 0.22rem;
+  color: #e8890a;
+  font-weight: 650;
+  font-size: 0.88rem;
+  margin-bottom: 0.2rem;
 }
 
 .record-description {
-  color: #23384f;
-  margin-bottom: 0.25rem;
-  line-height: 1.45;
-}
-
-.record-result {
-  color: #5c7289;
+  color: #1e293b;
+  margin-bottom: 0.2rem;
+  line-height: 1.5;
   font-size: 0.88rem;
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.record-result {
+  color: #64748b;
+  font-size: 0.82rem;
 }
 
+/* ── Responsive ── */
 @media (max-width: 992px) {
   .growth-profile-container {
-    padding: 1.35rem;
+    padding: 1.5rem 1.25rem 2.25rem;
   }
 
-  .profile-header {
-    padding: 1.2rem;
-  }
+  .profile-header { padding: 1.2rem; }
 
   .create-child-form {
     grid-template-columns: 1fr 1fr;
   }
 
-  .header-actions {
-    align-self: stretch;
-  }
+  .header-actions { align-self: stretch; }
 
   .header-actions .edit-btn,
   .header-actions .save-btn,
@@ -1287,8 +1468,14 @@ onMounted(async () => {
 
 @media (max-width: 768px) {
   .growth-profile-container {
-    padding: 0.9rem;
+    padding: 1rem;
   }
+
+  .hero-header {
+    padding: 1.75rem 1.5rem 1.5rem;
+  }
+
+  .hero-title { font-size: 1.3rem; }
 
   .profile-header {
     flex-direction: column;
@@ -1302,27 +1489,19 @@ onMounted(async () => {
   }
 
   .avatar-placeholder {
-    width: 84px;
-    height: 84px;
-    border-radius: 22px;
-    font-size: 2.5rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    font-size: 1.5rem;
   }
 
-  .child-details h1 {
-    font-size: 1.7rem;
-  }
+  .child-details h1 { font-size: 1.2rem; }
 
-  .child-meta {
-    gap: 0.45rem;
-  }
-
-  .tab-navigation {
-    gap: 0.4rem;
-  }
+  .tab-navigation { gap: 4px; }
 
   .tab-btn {
-    padding: 0.55rem 0.95rem;
-    font-size: 0.88rem;
+    padding: 6px 14px;
+    font-size: 13px;
   }
 
   .overview-grid,
@@ -1337,12 +1516,10 @@ onMounted(async () => {
 
   .record-item {
     flex-direction: column;
-    gap: 0.45rem;
+    gap: 0.4rem;
   }
 
-  .record-date {
-    width: auto;
-  }
+  .record-date { width: auto; }
 
   .create-child-form {
     grid-template-columns: 1fr;
