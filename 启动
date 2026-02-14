@@ -1,0 +1,17 @@
+后端：
+cd gantong
+cd backend
+npm run start
+npm run start:dev
+
+前端：
+cd gantong
+cd frontend
+npm run dev
+
+数据库：
+"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres
+
+
+npm run seed:superadmin
+npm run typeorm:run
